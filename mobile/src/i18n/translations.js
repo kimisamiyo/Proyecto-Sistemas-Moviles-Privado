@@ -63,6 +63,8 @@ export const es = {
     workshop: 'Taller',
     noEvents: 'No se encontraron eventos',
     seatsLeft: 'quedan',
+    exploreTab: 'Explorar',
+    myEventsTab: 'Mis Eventos',
   },
   eventDetail: {
     typeLabel: 'TIPO',
@@ -78,6 +80,10 @@ export const es = {
     confirmMessage: 'Acceso institucional concedido. Tu pase ha sido añadido a tu Billetera Digital.',
     registrationFailed: 'Error en el registro',
     keynoteSpeakers: 'Ponentes Principales',
+    modalTitle: 'Confirma tu Asistencia',
+    modalDesc: 'Por favor confirma el correo al que enviaremos tu invitación.',
+    modalEmailLabel: 'CORREO PARA INVITACIÓN',
+    modalConfirmBtn: 'Confirmar Asistencia',
   },
   messages: {
     headerLabel: 'ATELIER ACADÉMICO',
@@ -176,6 +182,8 @@ export const en = {
     workshop: 'Workshop',
     noEvents: 'No events found',
     seatsLeft: 'left',
+    exploreTab: 'Explore',
+    myEventsTab: 'My Events',
   },
   eventDetail: {
     typeLabel: 'TYPE',
@@ -191,6 +199,10 @@ export const en = {
     confirmMessage: 'Institutional access granted. Your ticket has been added to your Digital Wallet.',
     registrationFailed: 'Registration Failed',
     keynoteSpeakers: 'Keynote Speakers',
+    modalTitle: 'Confirm Attendance',
+    modalDesc: 'Please confirm the email where we will send your invitation.',
+    modalEmailLabel: 'INVITATION EMAIL',
+    modalConfirmBtn: 'Confirm Attendance',
   },
   messages: {
     headerLabel: 'ATELIER ACADEMIC',

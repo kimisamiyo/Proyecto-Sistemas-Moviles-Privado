@@ -96,6 +96,7 @@ export default function MapScreen({ navigation }) {
   const [userLocation, setUserLocation] = useState(null);
   const [radarActive, setRadarActive] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const mapRef = useRef(null);
 
   useEffect(() => { fetchAllEvents(); }, []);
 
@@ -110,7 +111,15 @@ export default function MapScreen({ navigation }) {
         });
       } else {
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        const newLoc = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+        setUserLocation(newLoc);
+        if (mapRef.current) {
+          mapRef.current.animateToRegion({
+            ...newLoc,
+            latitudeDelta: 0.025,
+            longitudeDelta: 0.025,
+          }, 1500); // 1.5 seconds smooth fly-in
+        }
       }
       setRadarActive(true);
     } catch (e) {
@@ -190,6 +199,7 @@ export default function MapScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialRegion={userLocation ? { ...userLocation, latitudeDelta: 0.025, longitudeDelta: 0.025 } : initialRegion}
         customMapStyle={darkMapStyle}

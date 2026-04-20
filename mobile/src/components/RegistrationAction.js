@@ -8,23 +8,13 @@ import { useLanguageStore } from '../store/languageStore';
 export default function RegistrationAction({ onRegister, isRegistered = false, t: tProp }) {
   const { t: tStore } = useLanguageStore();
   const t = tProp || tStore;
-  const [loading, setLoading] = useState(false);
-  const [registered, setRegistered] = useState(isRegistered);
-
   const handlePress = async () => {
-    if (registered || loading) return;
+    if (isRegistered) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setLoading(true);
-    try {
-      await onRegister?.();
-      setRegistered(true);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally { setLoading(false); }
+    onRegister?.();
   };
 
-  if (registered) {
+  if (isRegistered) {
     return (
       <TouchableOpacity style={styles.registeredButton} activeOpacity={1}>
         <Text style={styles.registeredIcon}>✓</Text>
@@ -34,14 +24,13 @@ export default function RegistrationAction({ onRegister, isRegistered = false, t
   }
 
   return (
-    <TouchableOpacity onPress={handlePress} disabled={loading} activeOpacity={0.85}>
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.85}>
       <LinearGradient
         colors={[colors.primary, colors.primary_container]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={styles.button}
       >
-        {loading ? <ActivityIndicator color={colors.on_primary} size="small" /> :
-          <Text style={styles.buttonText}>{t.eventDetail.registerButton}</Text>}
+        <Text style={styles.buttonText}>{t.eventDetail.registerButton}</Text>
       </LinearGradient>
     </TouchableOpacity>
   );

@@ -7,12 +7,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../theme/tokens';
 import { useEventStore } from '../store/eventStore';
 import { useLanguageStore } from '../store/languageStore';
+import { useAuthStore } from '../store/authStore';
 
 export default function EventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { events, fetchAllEvents, isLoading } = useEventStore();
   const { t } = useLanguageStore();
+  const { user } = useAuthStore();
+  
+  const [activeTab, setActiveTab] = useState('explore'); // 'explore' | 'myEvents'
   const [activeFilter, setActiveFilter] = useState('All');
+  const [selectedDate, setSelectedDate] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const FILTERS = [
@@ -30,9 +35,30 @@ export default function EventsScreen({ navigation }) {
     setRefreshing(true); await fetchAllEvents(); setRefreshing(false);
   }, []);
 
-  const filteredEvents = activeFilter === 'All'
-    ? events
-    : events.filter(e => e.metadata?.type === activeFilter);
+  const uniqueDates = Array.from(new Set(events.map(e => {
+    if (!e.schedule?.date) return null;
+    return new Date(e.schedule.date).toISOString().split('T')[0];
+  }))).filter(Boolean).sort();
+
+  let filteredEvents = events;
+
+  // Filter by Tab (Explore vs My Events)
+  if (activeTab === 'myEvents' && user) {
+    filteredEvents = filteredEvents.filter(e => e.attendees?.includes(user._id));
+  }
+
+  // Filter by Topic
+  if (activeFilter !== 'All') {
+    filteredEvents = filteredEvents.filter(e => e.metadata?.type === activeFilter);
+  }
+
+  // Filter by Calendar Date
+  if (selectedDate) {
+    filteredEvents = filteredEvents.filter(e => {
+      const eDate = new Date(e.schedule?.date).toISOString().split('T')[0];
+      return eDate === selectedDate;
+    });
+  }
 
   const renderEvent = ({ item }) => {
     const spotsLeft = item.capacity?.max - item.capacity?.current;
@@ -85,6 +111,52 @@ export default function EventsScreen({ navigation }) {
         <Text style={styles.headerLabel}>{t.events.headerLabel}</Text>
         <Text style={styles.headerTitle}>{t.events.headerTitle}</Text>
       </View>
+
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity 
+          style={[styles.tabBtn, activeTab === 'explore' && styles.tabBtnActive]} 
+          onPress={() => setActiveTab('explore')}
+        >
+          <Text style={[styles.tabText, activeTab === 'explore' && styles.tabTextActive]}>
+            {t.events.exploreTab}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tabBtn, activeTab === 'myEvents' && styles.tabBtnActive]} 
+          onPress={() => setActiveTab('myEvents')}
+        >
+          <Text style={[styles.tabText, activeTab === 'myEvents' && styles.tabTextActive]}>
+            {t.events.myEventsTab}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {uniqueDates.length > 0 && (
+        <View style={styles.calendarContainer}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={uniqueDates}
+            keyExtractor={item => item}
+            contentContainerStyle={styles.calendarScroll}
+            renderItem={({ item }) => {
+              const dateObj = new Date(item + 'T12:00:00Z');
+              const dayStr = dateObj.toLocaleDateString('es-PE', { weekday: 'short' }).substring(0, 3).toUpperCase();
+              const numStr = dateObj.getDate();
+              const isSelected = selectedDate === item;
+              return (
+                <TouchableOpacity 
+                  style={[styles.dateCard, isSelected && styles.dateCardActive]}
+                  onPress={() => setSelectedDate(isSelected ? null : item)}
+                >
+                  <Text style={[styles.dateDay, isSelected && styles.dateDayActive]}>{dayStr}</Text>
+                  <Text style={[styles.dateNum, isSelected && styles.dateNumActive]}>{numStr}</Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      )}
       <View style={styles.filterRow}>
         <FlatList
           horizontal data={FILTERS} showsHorizontalScrollIndicator={false}
@@ -117,6 +189,25 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
   headerLabel: { ...typography.label_sm, color: colors.outline, letterSpacing: 2, marginBottom: 4 },
   headerTitle: { ...typography.display_sm, color: colors.on_surface },
+  tabsContainer: { 
+    flexDirection: 'row', paddingHorizontal: spacing.xl, marginBottom: spacing.lg,
+    alignItems: 'center', gap: spacing.md
+  },
+  tabBtn: { paddingVertical: spacing.sm, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabBtnActive: { borderBottomColor: colors.primary },
+  tabText: { ...typography.title_md, color: colors.outline },
+  tabTextActive: { color: colors.on_surface, fontWeight: '700' },
+  calendarContainer: { marginBottom: spacing.lg },
+  calendarScroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
+  dateCard: { 
+    width: 50, height: 70, borderRadius: radius.md, backgroundColor: colors.surface_container_high, 
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent'
+  },
+  dateCardActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dateDay: { ...typography.label_sm, color: colors.secondary },
+  dateDayActive: { color: colors.on_primary },
+  dateNum: { ...typography.headline_md, color: colors.on_surface, marginTop: 4 },
+  dateNumActive: { color: colors.on_primary },
   filterRow: { marginBottom: spacing.lg },
   filterScroll: { paddingHorizontal: spacing.xl, gap: spacing.sm },
   filterChip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.full, backgroundColor: colors.surface_container_high },

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing, radius } from '../theme/tokens';
 import { useLanguageStore } from '../store/languageStore';
 
@@ -17,10 +18,21 @@ export default function LiveSalonsGallery({ liveEvents = [], onPress }) {
           return (
             <TouchableOpacity key={event._id} style={styles.salonItem} onPress={() => onPress?.(event)} activeOpacity={0.8}>
               <View style={styles.avatarContainer}>
-                <View style={styles.liveRing}>
-                  <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
-                </View>
-                <View style={styles.liveBadge}><View style={styles.liveDot} /></View>
+                <LinearGradient
+                  colors={['#00C6FF', '#0072FF']}
+                  style={styles.liveRing}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <View style={styles.avatar}>
+                    {speaker?.profile?.avatar ? (
+                      <Image source={{ uri: speaker.profile.avatar }} style={styles.avatarImage} />
+                    ) : (
+                      <Text style={styles.avatarText}>{initials}</Text>
+                    )}
+                  </View>
+                </LinearGradient>
+                <View style={styles.liveBadge}><Text style={styles.liveBadgeText}>LIVE</Text></View>
               </View>
               <Text style={styles.speakerName} numberOfLines={1}>{speaker ? speaker.profile?.firstName : 'En Vivo'}</Text>
             </TouchableOpacity>
@@ -37,10 +49,11 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: spacing.xl, gap: spacing.lg },
   salonItem: { alignItems: 'center', width: 72 },
   avatarContainer: { position: 'relative', marginBottom: spacing.sm },
-  liveRing: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderColor: colors.live, alignItems: 'center', justifyContent: 'center', padding: 2 },
-  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.surface_container_high, alignItems: 'center', justifyContent: 'center' },
+  liveRing: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', padding: 2 },
+  avatar: { width: 58, height: 58, borderRadius: 29, backgroundColor: colors.surface_container_high, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface, overflow: 'hidden' },
+  avatarImage: { width: '100%', height: '100%' },
   avatarText: { ...typography.title_md, color: colors.primary },
-  liveBadge: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.live },
-  speakerName: { ...typography.label_md, color: colors.secondary, textAlign: 'center' },
+  liveBadge: { position: 'absolute', bottom: -2, right: 6, width: 22, height: 16, borderRadius: 4, backgroundColor: colors.live, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
+  liveBadgeText: { fontSize: 8, fontWeight: 'bold', color: '#fff', letterSpacing: 0.5 },
+  speakerName: { ...typography.label_md, color: colors.on_surface, textAlign: 'center' },
 });

@@ -12,6 +12,7 @@ import { useAuthStore } from '../store/authStore';
 import { useLanguageStore } from '../store/languageStore';
 import KeynoteList from '../components/KeynoteList';
 import RegistrationAction from '../components/RegistrationAction';
+import RegistrationModal from '../components/RegistrationModal';
 
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId } = route.params;
@@ -21,6 +22,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const { user } = useAuthStore();
   const { t } = useLanguageStore();
   const [isRegistered, setIsRegistered] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   useEffect(() => { fetchEvent(eventId); return () => clearCurrentEvent(); }, [eventId]);
 
@@ -31,14 +33,19 @@ export default function EventDetailScreen({ route, navigation }) {
     }
   }, [currentEvent, user]);
 
-  const handleRegister = async () => {
+  const handleRegisterClick = () => {
+    setIsModalVisible(true);
+  };
+
+  const handleConfirmRegistration = async () => {
     try {
       const result = await registerForEvent(eventId);
       addTicket(result.ticket);
+      setIsModalVisible(false);
       Alert.alert(t.eventDetail.confirmTitle, t.eventDetail.confirmMessage, [{ text: t.common.ok }]);
     } catch (error) {
+      setIsModalVisible(false);
       Alert.alert(t.eventDetail.registrationFailed, typeof error === 'string' ? error : t.common.retry);
-      throw error;
     }
   };
 
@@ -90,7 +97,7 @@ export default function EventDetailScreen({ route, navigation }) {
             <Text style={styles.metaValue}>{spotsLeft} {t.eventDetail.seatsRemaining}</Text>
           </View>
         </View>
-        <RegistrationAction onRegister={handleRegister} isRegistered={isRegistered} t={t} />
+        <RegistrationAction onRegister={handleRegisterClick} isRegistered={isRegistered} t={t} />
         <View style={styles.descriptionSection}>
           <Text style={styles.sectionTitle}>{t.eventDetail.aboutSeminar}</Text>
           <Text style={styles.description}>{event.metadata?.description}</Text>
@@ -105,6 +112,12 @@ export default function EventDetailScreen({ route, navigation }) {
         <KeynoteList speakers={event.speakers} t={t} />
         <View style={{ height: 120 }} />
       </ScrollView>
+      <RegistrationModal 
+        visible={isModalVisible} 
+        onClose={() => setIsModalVisible(false)} 
+        onConfirm={handleConfirmRegistration} 
+        userEmail={user?.email} 
+      />
     </View>
   );
 }
