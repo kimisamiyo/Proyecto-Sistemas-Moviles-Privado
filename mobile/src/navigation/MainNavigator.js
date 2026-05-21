@@ -17,6 +17,8 @@ import EventDetailScreen from '../screens/EventDetailScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import SquadsScreen from '../screens/SquadsScreen';
+import CreateSquadScreen from '../screens/CreateSquadScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -29,6 +31,7 @@ function FeedStackNavigator() {
     <FeedStack.Navigator screenOptions={{ headerShown: false }}>
       <FeedStack.Screen name="FeedHome" component={FeedScreen} />
       <FeedStack.Screen name="EventDetail" component={EventDetailScreen} />
+      <FeedStack.Screen name="CreateSquad" component={CreateSquadScreen} />
     </FeedStack.Navigator>
   );
 }
@@ -38,6 +41,7 @@ function EventStackNavigator() {
     <EventStack.Navigator screenOptions={{ headerShown: false }}>
       <EventStack.Screen name="EventsHome" component={EventsScreen} />
       <EventStack.Screen name="EventDetail" component={EventDetailScreen} />
+      <EventStack.Screen name="CreateSquad" component={CreateSquadScreen} />
     </EventStack.Navigator>
   );
 }
@@ -60,6 +64,7 @@ function TabNavigator() {
           let iconName;
           if (route.name === 'Feed') iconName = focused ? 'compass' : 'compass-outline';
           else if (route.name === 'Map') iconName = focused ? 'map' : 'map-outline';
+          else if (route.name === 'Squads') iconName = focused ? 'people' : 'people-outline';
           else if (route.name === 'Events') iconName = focused ? 'calendar' : 'calendar-outline';
           else if (route.name === 'Messages') iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
@@ -95,6 +100,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Feed" component={FeedStackNavigator} />
       <Tab.Screen name="Map" component={MapScreen} />
+      <Tab.Screen name="Squads" component={SquadsScreen} />
       <Tab.Screen name="Events" component={EventStackNavigator} />
       <Tab.Screen name="Messages" component={MessageStackNavigator} />
       <Tab.Screen name="Profile" component={ProfileScreen} />

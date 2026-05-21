@@ -16,6 +16,9 @@ client.interceptors.request.use(
     if (token) {
       cfg.headers.Authorization = `Bearer ${token}`;
     }
+    if (cfg.baseURL?.includes('ngrok')) {
+      cfg.headers['ngrok-skip-browser-warning'] = 'true';
+    }
     return cfg;
   },
   (error) => Promise.reject(error)

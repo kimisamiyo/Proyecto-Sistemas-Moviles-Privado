@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing, radius } from '../theme/tokens';
 import { useAuthStore } from '../store/authStore';
 import { useLanguageStore } from '../store/languageStore';
+import config from '../config';
 
 const { width } = Dimensions.get('window');
 
@@ -63,6 +64,12 @@ export default function LoginScreen({ navigation }) {
               secureTextEntry
             />
           </View>
+
+          {__DEV__ && (
+            <Text style={styles.apiHint} numberOfLines={2}>
+              API: {config.API_URL}
+            </Text>
+          )}
 
           {error && (
             <View style={styles.errorContainer}>
@@ -123,6 +130,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface_container_highest,
     borderWidth: 1, borderColor: 'rgba(193, 199, 207, 0.4)',
   },
+  apiHint: { ...typography.body_sm, color: colors.outline, textAlign: 'center', marginBottom: spacing.sm, fontSize: 11 },
   errorContainer: { backgroundColor: colors.error_container, borderRadius: radius.md, padding: spacing.md },
   errorText: { ...typography.body_sm, color: colors.error, textAlign: 'center' },
   loginButton: { borderRadius: radius.md, paddingVertical: 16, alignItems: 'center', marginTop: spacing.sm },

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Alert
+  ActivityIndicator, Alert, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,11 +13,20 @@ import { useLanguageStore } from '../store/languageStore';
 import KeynoteList from '../components/KeynoteList';
 import RegistrationAction from '../components/RegistrationAction';
 import RegistrationModal from '../components/RegistrationModal';
+import CommunityChip from '../components/CommunityChip';
+import SquadsStrip from '../components/SquadsStrip';
+import { getCommunityTheme } from '../theme/communityThemes';
+import { useSquadStore } from '../store/squadStore';
+import FadeInView from '../components/ui/FadeInView';
+import PressableScale from '../components/ui/PressableScale';
+import { LinearGradient } from 'expo-linear-gradient';
+import client from '../api/client';
 
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId } = route.params;
   const insets = useSafeAreaInsets();
-  const { currentEvent, fetchEvent, registerForEvent, isLoading, clearCurrentEvent } = useEventStore();
+  const { currentEvent, currentCommunity, eventSquads, fetchEvent, registerForEvent, isLoading, clearCurrentEvent } = useEventStore();
+  const { joinSquad } = useSquadStore();
   const { addTicket } = useWalletStore();
   const { user } = useAuthStore();
   const { t } = useLanguageStore();
@@ -58,19 +67,61 @@ export default function EventDetailScreen({ route, navigation }) {
   }
 
   const event = currentEvent;
+  const theme = getCommunityTheme(event.metadata?.communitySlug);
+  const c = theme.colors;
   const spotsLeft = event.capacity?.max - event.capacity?.current;
   const eventDate = new Date(event.schedule?.date);
 
+  const handleWhatsApp = async () => {
+    try {
+      const { data } = await client.get(`/eventus/events/${eventId}/invite/whatsapp`);
+      Linking.openURL(data.whatsappUrl);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir WhatsApp');
+    }
+  };
+
+  const handleJoinSquad = async (squad) => {
+    try {
+      await joinSquad(squad._id, 'Mismo plan — me apunto');
+      Alert.alert('Unido', `Te uniste a ${squad.name}`);
+      fetchEvent(eventId);
+    } catch (e) {
+      Alert.alert('Error', e?.response?.data?.error || 'No se pudo unir');
+    }
+  };
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: c.surface }]}>
+      <LinearGradient colors={theme.gradient || [c.surface, c.surface]} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={22} color={colors.on_surface} />
       </TouchableOpacity>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={styles.headerSection}>
-          <Text style={styles.typeLabel}>{event.metadata?.type?.toUpperCase()}</Text>
-          <Text style={styles.title}>{event.metadata?.title}</Text>
-        </View>
+        <FadeInView style={styles.headerSection}>
+          <CommunityChip slug={event.metadata?.communitySlug} />
+          <Text style={[styles.typeLabel, { color: c.secondary }]}>{event.metadata?.type?.toUpperCase()}</Text>
+          <Text style={[styles.title, { color: c.on_surface }]}>{event.metadata?.title}</Text>
+          {event.metadata?.impactStatement ? (
+            <Text style={[styles.impact, { color: c.primary }]}>{event.metadata.impactStatement}</Text>
+          ) : null}
+        </FadeInView>
+        <SquadsStrip
+          eventId={eventId}
+          squads={eventSquads}
+          title="Grupos para este evento"
+          subtitle="Hostea o únete — mismo plan, mismos cupos"
+          onSquadPress={handleJoinSquad}
+          onCreate={() => navigation.navigate('CreateSquad', {
+            eventId,
+            eventTitle: event.metadata?.title,
+            communitySlug: event.metadata?.communitySlug,
+          })}
+        />
+        <PressableScale onPress={handleWhatsApp} style={[styles.waBtn, { borderColor: c.primary }]}>
+          <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+          <Text style={{ color: c.on_surface, ...typography.label_md }}>Invitar amigos por WhatsApp</Text>
+        </PressableScale>
         <View style={styles.metaGrid}>
           <View style={styles.metaCard}>
             <Ionicons name="calendar-outline" size={16} color={colors.secondary} />
@@ -143,4 +194,16 @@ const styles = StyleSheet.create({
   tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
   tag: { backgroundColor: colors.surface_container_highest, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.full },
   tagText: { ...typography.label_md, color: colors.secondary },
+  impact: { ...typography.body_md, marginTop: spacing.sm },
+  waBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    backgroundColor: 'rgba(37,38,38,0.6)',
+  },
 });

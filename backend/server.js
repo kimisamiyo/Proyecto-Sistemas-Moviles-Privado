@@ -9,6 +9,10 @@ const eventRoutes = require('./routes/events');
 const networkRoutes = require('./routes/network');
 const messageRoutes = require('./routes/messages');
 const userRoutes = require('./routes/users');
+const communityRoutes = require('./routes/communities');
+const eventusRoutes = require('./routes/eventus');
+const squadRoutes = require('./routes/squads');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,19 +33,37 @@ app.use('/api/v1/events', eventRoutes);
 app.use('/api/v1/network', networkRoutes);
 app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/communities', communityRoutes);
+app.use('/api/v1/eventus', eventusRoutes);
+app.use('/api/v1/squads', squadRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 app.get('/', (req, res) => {
   res.json({
-    name: 'Atelier Academic API',
-    version: '1.0.0',
+    name: 'EventUs API',
+    version: '2.0.0',
     status: 'operational',
+    tagline: 'Conecta con propósito — eventos sociales con impacto local',
     endpoints: {
       auth: '/api/v1/auth',
       events: '/api/v1/events',
+      communities: '/api/v1/communities',
+      eventus: '/api/v1/eventus',
       network: '/api/v1/network',
       messages: '/api/v1/messages',
-      users: '/api/v1/users'
-    }
+      users: '/api/v1/users',
+    },
+    features: [
+      'radar',
+      'matchmaking',
+      'dynamic_qr',
+      'event_wall',
+      'badges',
+      'whatsapp_invite',
+      'creator_mode',
+      'collaborative_album',
+      'organizer_metrics',
+    ],
   });
 });
 
@@ -57,11 +79,19 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
   await connectDB();
   app.listen(PORT, () => {
-    console.log(`\n  ✦ Atelier Academic API`);
+    console.log(`\n  ✦ EventUs API`);
     console.log(`  ✦ Port: ${PORT}`);
     console.log(`  ✦ Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`  ✦ Ready for connections\n`);
+    if (process.env.USE_MEMORY_DB === 'true') {
+      console.log(`  ✦ BD en memoria — usa: npm run dev:memory (seed + API juntos)\n`);
+    } else {
+      console.log(`  ✦ Ready for connections\n`);
+    }
   });
 };
 
-startServer();
+module.exports = { app, startServer };
+
+if (require.main === module) {
+  startServer();
+}

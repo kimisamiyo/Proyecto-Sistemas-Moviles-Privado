@@ -1,31 +1,47 @@
 const Event = require('../models/Event');
 const User = require('../models/User');
+const Ticket = require('../models/Ticket');
+const CommunityType = require('../models/CommunityType');
 const { generateQRToken } = require('../utils/qrGenerator');
+const { sendEventRegistration } = require('../services/emailService');
+const { createNotification } = require('../services/notificationService');
+const { formatSquad } = require('./squadController');
+const Squad = require('../models/Squad');
+
+const populateEventQuery = (query) =>
+  query
+    .populate('hosts.userId', 'profile.firstName profile.lastName profile.title profile.avatar')
+    .populate('speakers.userId', 'profile.firstName profile.lastName profile.avatar')
+    .populate('createdBy', 'profile.firstName profile.lastName profile.avatar');
 
 const explore = async (req, res) => {
   try {
     const { page = 1, limit = 20, type } = req.query;
     const query = {};
 
-    if (type) {
-      query['metadata.type'] = type;
-    }
+    if (type) query['metadata.type'] = type;
+    if (req.query.community) query['metadata.communitySlug'] = req.query.community;
 
-    const events = await Event.find(query)
-      .populate('speakers.userId', 'profile.firstName profile.lastName profile.title profile.avatar')
+    const events = await populateEventQuery(Event.find(query))
       .sort({ 'schedule.date': 1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
 
-    const liveEvents = await Event.find({ isLive: true })
-      .populate('speakers.userId', 'profile.firstName profile.lastName profile.avatar')
-      .limit(10);
-
+    const liveEvents = await populateEventQuery(Event.find({ isLive: true })).limit(10);
+    const communities = await CommunityType.find({ isActive: true }).sort({ sortOrder: 1 });
     const total = await Event.countDocuments(query);
+
+    const openSquads = await Squad.find({ status: 'recruiting' })
+      .populate('event', 'metadata.title metadata.communitySlug')
+      .populate('leader', 'profile.firstName profile.lastName profile.avatar')
+      .sort({ updatedAt: -1 })
+      .limit(12);
 
     res.json({
       events,
       liveEvents,
+      communities,
+      openSquads: openSquads.map(formatSquad),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -41,16 +57,21 @@ const explore = async (req, res) => {
 
 const getEventById = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id)
-      .populate('speakers.userId', 'profile.firstName profile.lastName profile.title profile.avatar profile.bio credentials')
-      .populate('attendees', 'profile.firstName profile.lastName profile.avatar')
-      .populate('createdBy', 'profile.firstName profile.lastName');
+    const event = await populateEventQuery(Event.findById(req.params.id))
+      .populate('attendees', 'profile.firstName profile.lastName profile.avatar badges');
 
-    if (!event) {
-      return res.status(404).json({ error: 'Event not found.' });
-    }
+    if (!event) return res.status(404).json({ error: 'Event not found.' });
 
-    res.json({ event });
+    const community = await CommunityType.findOne({ slug: event.metadata.communitySlug });
+    const squads = await Squad.find({ event: event._id, status: { $in: ['recruiting', 'full'] } })
+      .populate('leader', 'profile.firstName profile.lastName profile.avatar')
+      .populate('members.user', 'profile.firstName profile.lastName profile.avatar')
+      .limit(20);
+    res.json({
+      event,
+      community,
+      squads: squads.map(formatSquad),
+    });
   } catch (error) {
     console.error('Get event error:', error);
     res.status(500).json({ error: 'Failed to fetch event details.' });
@@ -78,34 +99,64 @@ const registerForEvent = async (req, res) => {
       return res.status(400).json({ error: 'Already registered for this event.' });
     }
 
-    const { token, qrDataUrl } = await generateQRToken(userId, eventId);
+    const { token, tokenHash, qrDataUrl, expiresAt, ttlSeconds } = await generateQRToken(userId, eventId, 0);
+
+    const ticket = await Ticket.create({
+      user: userId,
+      event: eventId,
+      tokenHash,
+      expiresAt,
+      rotationIndex: 0,
+    });
 
     event.attendees.push(userId);
     event.capacity.current += 1;
+    event.metrics.registrations += 1;
     await event.save();
 
     const user = await User.findById(userId);
     user.wallet.push({
       eventId,
+      ticketId: ticket._id,
       qrToken: token,
-      accessType: 'General Admission',
-      issuedAt: new Date()
+      accessType: 'Entrada EventUs',
+      issuedAt: new Date(),
     });
     user.metrics.eventsAttended += 1;
+    user.metrics.impactPoints += 15;
     await user.save();
 
+    const ticketPayload = {
+      eventId,
+      ticketId: ticket._id,
+      ttlSeconds,
+    };
+    sendEventRegistration(user, event, ticketPayload).catch(() => {});
+    createNotification(
+      userId,
+      'event_register',
+      'Inscripción confirmada',
+      event.metadata.title,
+      { eventId }
+    ).catch(() => {});
+
     res.json({
-      message: 'Confirmation sent. Institutional access granted.',
+      message: 'Inscripción confirmada. Tu QR dinámico está activo.',
       ticket: {
         eventId,
+        ticketId: ticket._id,
         eventTitle: event.metadata.title,
+        communitySlug: event.metadata.communitySlug,
         qrToken: token,
         qrDataUrl,
-        accessType: 'General Admission',
+        expiresAt,
+        ttlSeconds,
+        accessType: 'Entrada EventUs',
         venue: event.location.venue,
         date: event.schedule.date,
-        startTime: event.schedule.startTime
-      }
+        startTime: event.schedule.startTime,
+        inviteCode: event.sharing.inviteCode,
+      },
     });
   } catch (error) {
     console.error('Registration error:', error);

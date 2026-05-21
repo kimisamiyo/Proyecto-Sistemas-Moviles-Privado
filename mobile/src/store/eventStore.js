@@ -4,18 +4,27 @@ import client from '../api/client';
 export const useEventStore = create((set, get) => ({
   events: [],
   liveEvents: [],
+  communities: [],
   currentEvent: null,
+  currentCommunity: null,
+  eventSquads: [],
   isLoading: false,
   error: null,
   pagination: null,
+  communityFilter: null,
 
   fetchExplore: async (params = {}) => {
+    const filter = get().communityFilter;
     set({ isLoading: true });
     try {
-      const { data } = await client.get('/events/explore', { params });
+      const { data } = await client.get('/events/explore', {
+        params: { ...params, ...(filter ? { community: filter } : {}) },
+      });
       set({
         events: data.events,
         liveEvents: data.liveEvents,
+        communities: data.communities || [],
+        openSquads: data.openSquads || [],
         pagination: data.pagination,
         isLoading: false,
       });
@@ -38,7 +47,12 @@ export const useEventStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const { data } = await client.get(`/events/${id}`);
-      set({ currentEvent: data.event, isLoading: false });
+      set({
+        currentEvent: data.event,
+        currentCommunity: data.community,
+        eventSquads: data.squads || [],
+        isLoading: false,
+      });
       return data.event;
     } catch (error) {
       set({ isLoading: false, error: error.message });
@@ -75,5 +89,7 @@ export const useEventStore = create((set, get) => ({
     }
   },
 
-  clearCurrentEvent: () => set({ currentEvent: null }),
+  setCommunityFilter: (slug) => set({ communityFilter: slug }),
+
+  clearCurrentEvent: () => set({ currentEvent: null, currentCommunity: null }),
 }));

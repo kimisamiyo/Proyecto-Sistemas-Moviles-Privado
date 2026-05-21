@@ -21,7 +21,15 @@ export const useAuthStore = create((set, get) => ({
       });
       return data;
     } catch (error) {
-      const msg = error.response?.data?.error || 'Login failed';
+      let msg = error.response?.data?.error;
+      if (!msg) {
+        if (!error.response) {
+          msg =
+            'No se puede conectar al servidor. Crea mobile/.env con EXPO_PUBLIC_API_URL (ngrok) o la IP de tu PC en la misma WiFi, y reinicia Expo con --clear.';
+        } else {
+          msg = 'Login failed';
+        }
+      }
       set({ isLoading: false, error: msg });
       throw new Error(msg);
     }

@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../theme/tokens';
 import { useLanguageStore } from '../store/languageStore';
+import CommunityChip from './CommunityChip';
+import { getCommunityTheme } from '../theme/communityThemes';
 
 export default function CuratedFeed({ events = [], onPress }) {
   const { t } = useLanguageStore();
@@ -14,12 +16,20 @@ export default function CuratedFeed({ events = [], onPress }) {
       <View style={styles.cardList}>
         {events.map((event, index) => {
           const isWide = index % 3 === 0;
-          const typeColor = getTypeColor(event.metadata?.type);
+          const slug = event.metadata?.communitySlug;
+          const theme = getCommunityTheme(slug);
+          const typeColor = theme.colors.primary;
           const spotsLeft = event.capacity?.max - event.capacity?.current;
           return (
-            <TouchableOpacity key={event._id} style={[styles.card, isWide && styles.cardWide]} onPress={() => onPress?.(event)} activeOpacity={0.85}>
-              {event.isFeatured && <View style={styles.featuredAccent} />}
+            <TouchableOpacity
+              key={event._id}
+              style={[styles.card, isWide && styles.cardWide, { borderLeftWidth: 3, borderLeftColor: typeColor }]}
+              onPress={() => onPress?.(event)}
+              activeOpacity={0.85}
+            >
+              {event.isFeatured && <View style={[styles.featuredAccent, { backgroundColor: typeColor }]} />}
               <View style={styles.cardContent}>
+                {slug ? <CommunityChip slug={slug} size="sm" style={{ alignSelf: 'flex-start' }} /> : null}
                 {event.isLive ? (
                   <View style={styles.liveTag}>
                     <View style={styles.liveIndicator} />
@@ -55,18 +65,6 @@ export default function CuratedFeed({ events = [], onPress }) {
       </View>
     </View>
   );
-}
-
-function getTypeColor(type) {
-  switch (type) {
-    case 'Symposium': return '#8b9dc3';
-    case 'Live Salon': return colors.live;
-    case 'Hackathon': return '#d4a574';
-    case 'In-Person Seminar': return '#a8c5da';
-    case 'Workshop': return '#b8a9c9';
-    case 'Lecture': return colors.secondary;
-    default: return colors.secondary;
-  }
 }
 
 const styles = StyleSheet.create({

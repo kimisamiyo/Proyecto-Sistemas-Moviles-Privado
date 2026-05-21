@@ -14,15 +14,7 @@ import config from '../config';
 
 const { width, height } = Dimensions.get('window');
 
-let MapView, Marker, Circle;
-try {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  Circle = Maps.Circle;
-} catch (e) {
-  MapView = null; Marker = null; Circle = null;
-}
+import MapView, { Marker, Circle } from 'react-native-maps';
 
 const darkMapStyle = [
   { elementType: 'geometry', stylers: [{ color: '#131313' }] },
@@ -138,63 +130,6 @@ export default function MapScreen({ navigation }) {
     latitudeDelta: 0.025,
     longitudeDelta: 0.025,
   };
-
-  if (!MapView) {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Text style={styles.headerLabel}>{t.map.headerLabel}</Text>
-          <Text style={styles.headerTitle}>{t.map.headerTitle}</Text>
-        </View>
-
-        {!radarActive ? (
-          <View style={styles.radarActivateContainer}>
-            <RadarPulse style={{ width: 180, height: 180 }} />
-            <TouchableOpacity style={styles.activateButton} onPress={activateRadar} activeOpacity={0.85}>
-              <Ionicons name="radio-outline" size={20} color={colors.on_primary} />
-              <Text style={styles.activateText}>
-                {locationLoading ? t.map.locating : t.map.activateRadar}
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.radarHint}>{t.map.searchingNearby}</Text>
-          </View>
-        ) : (
-          <View style={styles.fallback}>
-            <View style={styles.radarStatusBar}>
-              <View style={styles.radarDot} />
-              <Text style={styles.radarStatusText}>{t.map.radarActive}</Text>
-            </View>
-            <Text style={styles.fallbackTitle}>{t.map.nearbyEvents}</Text>
-            <View style={styles.eventList}>
-              {events.map((event) => (
-                <TouchableOpacity
-                  key={event._id} style={styles.eventItem}
-                  onPress={() => setSelectedEvent(event)} activeOpacity={0.85}
-                >
-                  <View style={styles.eventPinIcon}>
-                    <Ionicons name="location" size={16} color={colors.primary} />
-                  </View>
-                  <View style={styles.eventItemInfo}>
-                    <Text style={styles.eventItemTitle} numberOfLines={1}>{event.metadata?.title}</Text>
-                    <Text style={styles.eventItemVenue} numberOfLines={1}>{event.location?.venue}</Text>
-                  </View>
-                  {event.isLive && <View style={styles.liveDot} />}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {selectedEvent && (
-          <View style={styles.floatingCard}>
-            <View style={styles.androidCard}>
-              <EventCard event={selectedEvent} onClose={() => setSelectedEvent(null)} t={t} />
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>

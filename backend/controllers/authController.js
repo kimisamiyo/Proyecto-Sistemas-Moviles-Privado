@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
+const { sendWelcome } = require('../services/emailService');
+const { createNotification } = require('../services/notificationService');
 
 const register = async (req, res) => {
   try {
@@ -25,8 +27,11 @@ const register = async (req, res) => {
     await user.save();
     const token = generateToken(user._id);
 
+    sendWelcome(user).catch(() => {});
+    createNotification(user._id, 'welcome', 'Bienvenido a EventUs', 'Explora eventos y únete a escuadras.').catch(() => {});
+
     res.status(201).json({
-      message: 'Account created successfully.',
+      message: 'Cuenta creada. Revisa tu correo de bienvenida.',
       token,
       user: user.toPublicJSON()
     });

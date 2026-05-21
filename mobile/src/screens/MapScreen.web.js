@@ -1,0 +1,231 @@
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  Animated, Easing,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import { colors, typography, spacing, radius } from '../theme/tokens';
+import { useEventStore } from '../store/eventStore';
+import { useLanguageStore } from '../store/languageStore';
+function RadarPulse({ style }) {
+  const pulse1 = useRef(new Animated.Value(0)).current;
+  const pulse2 = useRef(new Animated.Value(0)).current;
+  const pulse3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const createPulse = (anim, delay) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, { toValue: 0, duration: 0, useNativeDriver: true }),
+        ])
+      );
+    const a1 = createPulse(pulse1, 0);
+    const a2 = createPulse(pulse2, 600);
+    const a3 = createPulse(pulse3, 1200);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, []);
+
+  const renderRing = (anim) => {
+    const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
+    const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] });
+    return (
+      <Animated.View
+        style={[styles.radarRing, style, { transform: [{ scale }], opacity }]}
+      />
+    );
+  };
+
+  return (
+    <View style={[styles.radarContainer, style]}>
+      {renderRing(pulse1)}
+      {renderRing(pulse2)}
+      {renderRing(pulse3)}
+      <View style={styles.radarCenter} />
+    </View>
+  );
+}
+
+export default function MapScreen() {
+  const insets = useSafeAreaInsets();
+  const { events, fetchAllEvents } = useEventStore();
+  const openSquads = useSquadStore((s) => s.openSquads);
+  const fetchOpenSquads = useSquadStore((s) => s.fetchOpenSquads);
+  const { t } = useLanguageStore();
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [radarActive, setRadarActive] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+
+  useEffect(() => {
+    fetchAllEvents();
+    fetchOpenSquads();
+  }, []);
+
+  const activateRadar = async () => {
+    setLocationLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setRadarActive(true);
+      } else {
+        await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setRadarActive(true);
+      }
+    } catch {
+      setRadarActive(true);
+    }
+    setLocationLoading(false);
+  };
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Text style={styles.headerLabel}>{t.map.headerLabel}</Text>
+        <Text style={styles.headerTitle}>{t.map.headerTitle}</Text>
+        <Text style={styles.webHint}>{t.map?.webPreviewHint ?? 'Vista web: lista de eventos cercanos (mapa nativo en móvil).'}</Text>
+      </View>
+
+      {!radarActive ? (
+        <View style={styles.radarActivateContainer}>
+          <RadarPulse style={{ width: 180, height: 180 }} />
+          <TouchableOpacity style={styles.activateButton} onPress={activateRadar} activeOpacity={0.85}>
+            <Ionicons name="radio-outline" size={20} color={colors.on_primary} />
+            <Text style={styles.activateText}>
+              {locationLoading ? t.map.locating : t.map.activateRadar}
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.radarHint}>{t.map.searchingNearby}</Text>
+        </View>
+        ) : (
+          <View style={styles.fallback}>
+            <SquadsStrip squads={openSquads} compact title="Cerca — escuadras activas" subtitle="Radar + grupos" />
+          <View style={styles.radarStatusBar}>
+            <View style={styles.radarDot} />
+            <Text style={styles.radarStatusText}>{t.map.radarActive}</Text>
+          </View>
+          <Text style={styles.fallbackTitle}>{t.map.nearbyEvents}</Text>
+          <View style={styles.eventList}>
+            {events.map((event) => (
+              <TouchableOpacity
+                key={event._id}
+                style={styles.eventItem}
+                onPress={() => setSelectedEvent(event)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.eventPinIcon}>
+                  <Ionicons name="location" size={16} color={colors.primary} />
+                </View>
+                <View style={styles.eventItemInfo}>
+                  <Text style={styles.eventItemTitle} numberOfLines={1}>{event.metadata?.title}</Text>
+                  <Text style={styles.eventItemVenue} numberOfLines={1}>{event.location?.venue}</Text>
+                </View>
+                {event.isLive && <View style={styles.liveDot} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {selectedEvent && (
+        <View style={styles.floatingCard}>
+          <View style={styles.androidCard}>
+            <EventCard event={selectedEvent} onClose={() => setSelectedEvent(null)} t={t} />
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function EventCard({ event, onClose, t }) {
+  return (
+    <View style={styles.cardInner}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardType}>{event.metadata?.type?.toUpperCase()}</Text>
+        <TouchableOpacity onPress={onClose}>
+          <Ionicons name="close" size={20} color={colors.outline} />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.cardTitle}>{event.metadata?.title}</Text>
+      <Text style={styles.cardVenue}>{event.location?.venue}</Text>
+      <View style={styles.cardMeta}>
+        <Text style={styles.cardMetaText}>
+          {new Date(event.schedule?.date).toLocaleDateString('es-PE', { month: 'short', day: 'numeric' })}
+        </Text>
+        <Text style={styles.cardMetaText}>{event.schedule?.startTime} — {event.schedule?.endTime}</Text>
+      </View>
+      <View style={styles.cardCapacity}>
+        <Text style={styles.capacityText}>
+          {event.capacity?.max - event.capacity?.current} {t.map.seatsAvailable}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
+  header: { paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
+  headerLabel: { ...typography.label_sm, color: colors.outline, letterSpacing: 2, marginBottom: 4 },
+  headerTitle: { ...typography.display_sm, color: colors.on_surface },
+  webHint: { ...typography.body_sm, color: colors.outline, marginTop: spacing.sm },
+  radarActivateContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
+  radarContainer: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  radarRing: {
+    position: 'absolute', width: 180, height: 180, borderRadius: 90,
+    borderWidth: 1.5, borderColor: colors.primary,
+  },
+  radarCenter: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.primary },
+  activateButton: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.primary, paddingHorizontal: spacing.xl, paddingVertical: 14,
+    borderRadius: radius.full, marginTop: 120,
+  },
+  activateText: { ...typography.label_lg, color: colors.on_primary, fontWeight: '700' },
+  radarHint: { ...typography.body_sm, color: colors.outline, marginTop: spacing.lg, textAlign: 'center' },
+  radarStatusBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface_container_high, alignSelf: 'flex-start',
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.full,
+    marginBottom: spacing.lg,
+  },
+  radarDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.live },
+  radarStatusText: { ...typography.label_md, color: colors.live },
+  fallback: { flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
+  fallbackTitle: { ...typography.headline_md, color: colors.on_surface, marginBottom: spacing.lg },
+  eventList: { gap: spacing.sm },
+  eventItem: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.surface_container_high, borderRadius: radius.lg,
+    padding: spacing.lg, gap: spacing.md,
+  },
+  eventPinIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.surface_container_highest,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  eventItemInfo: { flex: 1, gap: 2 },
+  eventItemTitle: { ...typography.title_md, color: colors.on_surface },
+  eventItemVenue: { ...typography.body_sm, color: colors.outline },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.live },
+  floatingCard: { position: 'absolute', bottom: 100, left: spacing.lg, right: spacing.lg },
+  androidCard: { backgroundColor: 'rgba(37, 38, 38, 0.95)', borderRadius: radius.xl },
+  cardInner: { padding: spacing.xl, gap: spacing.sm },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardType: { ...typography.label_sm, color: colors.secondary, letterSpacing: 1.5 },
+  cardTitle: { ...typography.headline_md, color: colors.on_surface },
+  cardVenue: { ...typography.body_md, color: colors.outline },
+  cardMeta: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
+  cardMetaText: { ...typography.label_md, color: colors.secondary },
+  cardCapacity: { marginTop: spacing.sm },
+  capacityText: { ...typography.body_sm, color: colors.primary },
+});
