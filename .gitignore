@@ -1,0 +1,48 @@
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Variables de entorno (mantener solo los .example)
+.env
+.env.local
+.env.*.local
+!.env.example
+!**/.env.example
+
+# MongoDB Memory Server (binarios grandes en caché)
+**/.cache/
+backend/node_modules/.cache/
+
+# Expo / React Native (mobile)
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+/ios
+/android
+
+# Logs y debug
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDE (opcional)
+.vscode/
+.idea/
+
+# TypeScript
+*.tsbuildinfo
