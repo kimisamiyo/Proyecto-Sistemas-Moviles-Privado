@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,42 +7,43 @@ import {
   ScrollView,
   Alert,
   Image,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Screen from '../components/ui/Screen';
-import AppInput from '../components/ui/AppInput';
-import AppButton from '../components/ui/AppButton';
-import { colors, typography, spacing, radius } from '../theme/tokens';
-import { useEventusStore } from '../store/eventusStore';
-import { useCommunityStore } from '../store/communityStore';
-import { getCoverForDraft } from '../utils/images';
-import { parseApiErrors } from '../utils/validators';
-import LocationMapPicker from '../components/map/LocationMapPicker';
-import { pickAndUploadCover } from '../utils/mediaUpload';
-import config from '../config';
-import resolveMediaUrl from '../utils/resolveMediaUrl';
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Screen from "../components/ui/Screen";
+import AppInput from "../components/ui/AppInput";
+import AppButton from "../components/ui/AppButton";
+import { colors, typography, spacing, radius } from "../theme/tokens";
+import { useEventusStore } from "../store/eventusStore";
+import { useCommunityStore } from "../store/communityStore";
+import { getCoverForDraft } from "../utils/images";
+import { parseApiErrors } from "../utils/validators";
+import LocationMapPicker from "../components/map/LocationMapPicker";
+import { pickAndUploadCover } from "../utils/mediaUpload";
+import config from "../config";
+import resolveMediaUrl from "../utils/resolveMediaUrl";
 
-const STEPS = ['Iniciativa', 'Cuándo y dónde', 'Publicar'];
+const STEPS = ["Iniciativa", "Cuándo y dónde", "Publicar"];
 
 export default function CreateEventScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { createEvent, isLoading } = useEventusStore();
   const { communities, fetchCommunities } = useCommunityStore();
   const [step, setStep] = useState(0);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [impactStatement, setImpactStatement] = useState('');
-  const [communitySlug, setCommunitySlug] = useState('voluntariado');
-  const [venue, setVenue] = useState('');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('12:00');
-  const [maxCapacity, setMaxCapacity] = useState('50');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [impactStatement, setImpactStatement] = useState("");
+  const [communitySlug, setCommunitySlug] = useState("voluntariado");
+  const [venue, setVenue] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("12:00");
+  const [maxCapacity, setMaxCapacity] = useState("50");
   const [coordinates, setCoordinates] = useState([
     config.DEFAULT_LOCATION.longitude,
     config.DEFAULT_LOCATION.latitude,
   ]);
-  const [mapTouched, setMapTouched] = useState(false);
+  const [mapTouched, setMapTouched] = useState(Platform.OS === "web");
   const [coverUri, setCoverUri] = useState(null);
   const [coverUrl, setCoverUrl] = useState(null);
   const [coverUploading, setCoverUploading] = useState(false);
@@ -52,13 +53,18 @@ export default function CreateEventScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    if (communities.length && !communities.some((c) => c.slug === communitySlug)) {
+    if (
+      communities.length &&
+      !communities.some((c) => c.slug === communitySlug)
+    ) {
       setCommunitySlug(communities[0].slug);
     }
   }, [communities]);
 
   const coverPreview =
-    coverUri || (coverUrl ? resolveMediaUrl(coverUrl) : null) || getCoverForDraft(title.trim() || communitySlug);
+    coverUri ||
+    (coverUrl ? resolveMediaUrl(coverUrl) : null) ||
+    getCoverForDraft(title.trim() || communitySlug);
 
   const handlePickCover = async () => {
     setCoverUploading(true);
@@ -69,7 +75,7 @@ export default function CreateEventScreen({ navigation }) {
         setCoverUrl(uploaded.url);
       }
     } catch (e) {
-      Alert.alert('Portada', parseApiErrors(e));
+      Alert.alert("Portada", parseApiErrors(e));
     } finally {
       setCoverUploading(false);
     }
@@ -78,21 +84,24 @@ export default function CreateEventScreen({ navigation }) {
   const next = () => {
     if (step === 0) {
       if (title.trim().length < 5) {
-        Alert.alert('Título', 'Mínimo 5 caracteres.');
+        Alert.alert("Título", "Mínimo 5 caracteres.");
         return;
       }
       if (description.trim().length < 20) {
-        Alert.alert('Descripción', 'Mínimo 20 caracteres para publicar.');
+        Alert.alert("Descripción", "Mínimo 20 caracteres para publicar.");
         return;
       }
     }
     if (step === 1) {
       if (!venue.trim()) {
-        Alert.alert('Lugar', 'Indica el venue o punto de encuentro.');
+        Alert.alert("Lugar", "Indica el venue o punto de encuentro.");
         return;
       }
-      if (!mapTouched) {
-        Alert.alert('Mapa', 'Marca el punto exacto en el mapa (toca o arrastra el pin).');
+      if (Platform.OS !== "web" && !mapTouched) {
+        Alert.alert(
+          "Mapa",
+          "Marca el punto exacto en el mapa (toca o arrastra el pin).",
+        );
         return;
       }
     }
@@ -103,23 +112,23 @@ export default function CreateEventScreen({ navigation }) {
 
   const handlePublish = async () => {
     if (!coverUrl) {
-      Alert.alert('Portada', 'Sube una imagen de portada desde la galería.');
+      Alert.alert("Portada", "Sube una imagen de portada desde la galería.");
       setStep(2);
       return;
     }
-    if (!mapTouched) {
-      Alert.alert('Ubicación', 'Marca el punto en el mapa (paso 2).');
+    if (Platform.OS !== "web" && !mapTouched) {
+      Alert.alert("Ubicación", "Marca el punto en el mapa (paso 2).");
       setStep(1);
       return;
     }
     if (!timeOk(startTime) || !timeOk(endTime)) {
-      Alert.alert('Horario', 'Usa formato HH:MM (ej. 09:00).');
+      Alert.alert("Horario", "Usa formato HH:MM (ej. 09:00).");
       setStep(1);
       return;
     }
     const cap = parseInt(maxCapacity, 10) || 50;
     if (cap < 2) {
-      Alert.alert('Cupos', 'Mínimo 2 personas.');
+      Alert.alert("Cupos", "Mínimo 2 personas.");
       return;
     }
     const eventDate = new Date();
@@ -140,7 +149,7 @@ export default function CreateEventScreen({ navigation }) {
           venue: venue.trim(),
           address: venue.trim(),
           coordinates: {
-            type: 'Point',
+            type: "Point",
             coordinates: [coordinates[0], coordinates[1]],
           },
         },
@@ -153,19 +162,21 @@ export default function CreateEventScreen({ navigation }) {
         },
       });
       if (navigation.canGoBack()) {
-        navigation.replace('EventDetail', { eventId: event._id });
+        navigation.replace("EventDetail", { eventId: event._id });
       } else {
-        navigation.navigate('EventDetail', { eventId: event._id });
+        navigation.navigate("EventDetail", { eventId: event._id });
       }
     } catch (e) {
-      Alert.alert('Error', parseApiErrors(e));
+      Alert.alert("Error", parseApiErrors(e));
     }
   };
 
   return (
     <Screen style={{ paddingTop: insets.top }}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())}>
+        <TouchableOpacity
+          onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Crear evento</Text>
@@ -185,7 +196,12 @@ export default function CreateEventScreen({ navigation }) {
 
         {step === 0 && (
           <>
-            <AppInput icon="text-outline" placeholder="Título de la iniciativa" value={title} onChangeText={setTitle} />
+            <AppInput
+              icon="text-outline"
+              placeholder="Título de la iniciativa"
+              value={title}
+              onChangeText={setTitle}
+            />
             <AppInput
               icon="document-text-outline"
               placeholder="Descripción (mín. 20 caracteres)"
@@ -202,27 +218,45 @@ export default function CreateEventScreen({ navigation }) {
               style={{ marginTop: spacing.md }}
             />
             <Text style={styles.fieldLabel}>Comunidad</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
-              {(communities.length ? communities : [{ slug: communitySlug, name: communitySlug }]).map(
-                (c) => (
-                  <TouchableOpacity
-                    key={c.slug}
-                    style={[styles.chip, communitySlug === c.slug && styles.chipOn]}
-                    onPress={() => setCommunitySlug(c.slug)}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chips}
+            >
+              {(communities.length
+                ? communities
+                : [{ slug: communitySlug, name: communitySlug }]
+              ).map((c) => (
+                <TouchableOpacity
+                  key={c.slug}
+                  style={[
+                    styles.chip,
+                    communitySlug === c.slug && styles.chipOn,
+                  ]}
+                  onPress={() => setCommunitySlug(c.slug)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      communitySlug === c.slug && styles.chipTextOn,
+                    ]}
                   >
-                    <Text style={[styles.chipText, communitySlug === c.slug && styles.chipTextOn]}>
-                      {c.name || c.slug}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              )}
+                    {c.name || c.slug}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </>
         )}
 
         {step === 1 && (
           <>
-            <AppInput icon="location-outline" placeholder="Lugar / venue" value={venue} onChangeText={setVenue} />
+            <AppInput
+              icon="location-outline"
+              placeholder="Lugar / venue"
+              value={venue}
+              onChangeText={setVenue}
+            />
             <AppInput
               icon="time-outline"
               placeholder="Inicio (HH:MM)"
@@ -237,7 +271,10 @@ export default function CreateEventScreen({ navigation }) {
               onChangeText={setEndTime}
               style={{ marginTop: spacing.md }}
             />
-            <Text style={styles.hint}>La fecha se programa para la próxima semana. Podrás editarla después.</Text>
+            <Text style={styles.hint}>
+              La fecha se programa para la próxima semana. Podrás editarla
+              después.
+            </Text>
             <LocationMapPicker
               coordinates={coordinates}
               onChange={(coords) => {
@@ -251,9 +288,15 @@ export default function CreateEventScreen({ navigation }) {
         {step === 2 && (
           <>
             <Text style={styles.fieldLabel}>Portada del evento</Text>
-            <Image source={{ uri: coverPreview }} style={styles.coverPreview} resizeMode="cover" />
+            <Image
+              source={{ uri: coverPreview }}
+              style={styles.coverPreview}
+              resizeMode="cover"
+            />
             <AppButton
-              title={coverUrl ? 'Cambiar portada' : 'Elegir portada desde galería'}
+              title={
+                coverUrl ? "Cambiar portada" : "Elegir portada desde galería"
+              }
               onPress={handlePickCover}
               loading={coverUploading}
               variant="outline"
@@ -267,13 +310,19 @@ export default function CreateEventScreen({ navigation }) {
             />
             <View style={styles.summary}>
               <Text style={styles.summaryTitle}>{title}</Text>
-              <Text style={styles.summaryMeta}>{venue || 'Lugar por definir'} · {communitySlug}</Text>
+              <Text style={styles.summaryMeta}>
+                {venue || "Lugar por definir"} · {communitySlug}
+              </Text>
             </View>
           </>
         )}
 
         {step < 2 ? (
-          <AppButton title="Siguiente" onPress={next} style={{ marginTop: spacing.xxl }} />
+          <AppButton
+            title="Siguiente"
+            onPress={next}
+            style={{ marginTop: spacing.xxl }}
+          />
         ) : (
           <AppButton
             title="Publicar iniciativa"
@@ -289,8 +338,8 @@ export default function CreateEventScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -298,7 +347,7 @@ const styles = StyleSheet.create({
   topTitle: { flex: 1, ...typography.headline_md, color: colors.primary },
   stepLabel: { ...typography.label_md, color: colors.outline },
   progress: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.lg,
@@ -311,9 +360,18 @@ const styles = StyleSheet.create({
   },
   dotOn: { backgroundColor: colors.primary },
   form: { padding: spacing.xl, paddingBottom: 120 },
-  stepName: { ...typography.headline_lg, color: colors.on_surface, marginBottom: spacing.xl },
-  fieldLabel: { ...typography.label_md, color: colors.on_surface_variant, marginTop: spacing.lg, marginBottom: spacing.sm },
-  chips: { flexDirection: 'row', marginBottom: spacing.md },
+  stepName: {
+    ...typography.headline_lg,
+    color: colors.on_surface,
+    marginBottom: spacing.xl,
+  },
+  fieldLabel: {
+    ...typography.label_md,
+    color: colors.on_surface_variant,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  chips: { flexDirection: "row", marginBottom: spacing.md },
   chip: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
@@ -332,9 +390,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
   },
   summaryTitle: { ...typography.title_lg, color: colors.on_surface },
-  summaryMeta: { ...typography.body_sm, color: colors.on_surface_variant, marginTop: spacing.xs },
+  summaryMeta: {
+    ...typography.body_sm,
+    color: colors.on_surface_variant,
+    marginTop: spacing.xs,
+  },
   coverPreview: {
-    width: '100%',
+    width: "100%",
     height: 160,
     borderRadius: radius.xl,
     marginBottom: spacing.lg,

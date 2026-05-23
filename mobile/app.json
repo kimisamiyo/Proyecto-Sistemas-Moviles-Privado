@@ -32,6 +32,14 @@
         {
           "photosPermission": "EventUs usa tu galería para portadas de eventos y recuerdos."
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "event-us",
+          "organization": "universidad-ricardo-palma-9g"
+        }
       ]
     ]
   }
