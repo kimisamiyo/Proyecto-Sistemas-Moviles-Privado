@@ -180,6 +180,14 @@ export default function EventsScreen({ navigation }) {
         ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>{t.events.noEvents}</Text></View>}
         ListFooterComponent={<View style={{ height: 100 }} />}
       />
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreateEvent')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={28} color={colors.on_primary} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -230,4 +238,20 @@ const styles = StyleSheet.create({
   footerText: { ...typography.label_md, color: colors.outline },
   empty: { alignItems: 'center', paddingVertical: spacing.xxxl },
   emptyText: { ...typography.body_md, color: colors.outline },
+  fab: {
+    position: 'absolute',
+    bottom: 84,
+    right: spacing.xl,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
+  },
 });

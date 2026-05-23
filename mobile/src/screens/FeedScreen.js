@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../theme/tokens';
@@ -79,6 +79,14 @@ export default function FeedScreen({ navigation }) {
         <CuratedFeed events={events} onPress={handleEventPress} />
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreateEvent')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={28} color={colors.on_primary} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -91,4 +99,20 @@ const styles = StyleSheet.create({
   headerActions: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface_container_high, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingTop: spacing.lg },
   impactLine: { ...typography.body_sm, color: colors.outline, paddingHorizontal: spacing.xl, marginBottom: spacing.sm },
+  fab: {
+    position: 'absolute',
+    bottom: 84,
+    right: spacing.xl,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
+  },
 });

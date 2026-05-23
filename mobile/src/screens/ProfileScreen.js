@@ -12,7 +12,7 @@ import IdentityHeader from '../components/IdentityHeader';
 import AcademicMetrics from '../components/AcademicMetrics';
 import DigitalWallet from '../components/DigitalWallet';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user, fetchMe, logout } = useAuthStore();
   const { tickets, fetchWallet } = useWalletStore();
@@ -44,7 +44,23 @@ export default function ProfileScreen() {
         <IdentityHeader user={user} />
         <View style={styles.sections}>
           <AcademicMetrics metrics={user?.metrics} t={t} />
-          <DigitalWallet wallet={tickets} credentials={user?.credentials} t={t} />
+          <DigitalWallet 
+            wallet={tickets} 
+            credentials={user?.credentials} 
+            t={t} 
+            onTicketPress={(ticket) => {
+              const eventId = ticket.eventId?._id || ticket.eventId;
+              if (eventId) {
+                navigation.navigate('TicketQR', {
+                  eventId,
+                  eventTitle: ticket.eventId?.metadata?.title || ticket.accessType,
+                  initialQrDataUrl: ticket.qrDataUrl,
+                  initialExpiresAt: ticket.expiresAt,
+                  initialTtl: ticket.ttlSeconds
+                });
+              }
+            }}
+          />
 
           <View style={styles.languageSection}>
             <Text style={styles.languageSectionTitle}>{t.profile.language}</Text>

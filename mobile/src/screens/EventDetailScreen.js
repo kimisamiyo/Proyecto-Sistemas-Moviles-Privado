@@ -27,13 +27,17 @@ export default function EventDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { currentEvent, currentCommunity, eventSquads, fetchEvent, registerForEvent, isLoading, clearCurrentEvent } = useEventStore();
   const { joinSquad } = useSquadStore();
-  const { addTicket } = useWalletStore();
+  const { tickets, fetchWallet, addTicket } = useWalletStore();
   const { user } = useAuthStore();
   const { t } = useLanguageStore();
   const [isRegistered, setIsRegistered] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  useEffect(() => { fetchEvent(eventId); return () => clearCurrentEvent(); }, [eventId]);
+  useEffect(() => { 
+    fetchEvent(eventId); 
+    fetchWallet();
+    return () => clearCurrentEvent(); 
+  }, [eventId]);
 
   useEffect(() => {
     if (currentEvent && user) {
@@ -71,6 +75,8 @@ export default function EventDetailScreen({ route, navigation }) {
   const c = theme.colors;
   const spotsLeft = event.capacity?.max - event.capacity?.current;
   const eventDate = new Date(event.schedule?.date);
+  const ticket = tickets?.find((tk) => (tk.eventId?._id || tk.eventId) === eventId);
+  const isOrganizer = event.createdBy === user?._id || event.createdBy?._id === user?._id;
 
   const handleWhatsApp = async () => {
     try {
@@ -149,6 +155,107 @@ export default function EventDetailScreen({ route, navigation }) {
           </View>
         </View>
         <RegistrationAction onRegister={handleRegisterClick} isRegistered={isRegistered} t={t} />
+
+        {(isRegistered || isOrganizer) && (
+          <View style={styles.coreFeaturesSection}>
+            <Text style={styles.coreFeaturesTitle}>Servicios Core EventUs</Text>
+            <View style={styles.featuresGrid}>
+              <PressableScale
+                style={styles.featureCard}
+                onPress={() => navigation.navigate('TicketQR', {
+                  eventId,
+                  eventTitle: event.metadata?.title,
+                  initialQrDataUrl: ticket?.qrDataUrl,
+                  initialExpiresAt: ticket?.expiresAt,
+                  initialTtl: ticket?.ttlSeconds
+                })}
+              >
+                <LinearGradient
+                  colors={['rgba(28,29,29,0.95)', 'rgba(17,18,18,0.95)']}
+                  style={StyleSheet.absoluteFillObject}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+                <Ionicons name="qr-code-outline" size={24} color={c.primary} style={{ marginBottom: 6 }} />
+                <Text style={styles.featureCardTitle}>Mi Entrada QR</Text>
+                <Text style={styles.featureCardDesc}>Acceso dinámico de alta seguridad.</Text>
+              </PressableScale>
+
+              <PressableScale
+                style={styles.featureCard}
+                onPress={() => navigation.navigate('EventWall', { eventId, eventTitle: event.metadata?.title })}
+              >
+                <LinearGradient
+                  colors={['rgba(28,29,29,0.95)', 'rgba(17,18,18,0.95)']}
+                  style={StyleSheet.absoluteFillObject}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+                <Ionicons name="chatbubbles-outline" size={24} color={c.primary} style={{ marginBottom: 6 }} />
+                <Text style={styles.featureCardTitle}>Muro de Discusión</Text>
+                <Text style={styles.featureCardDesc}>Publicaciones y debates con el público.</Text>
+              </PressableScale>
+            </View>
+
+            <View style={[styles.featuresGrid, { marginTop: spacing.md }]}>
+              <PressableScale
+                style={styles.featureCard}
+                onPress={() => navigation.navigate('EventAlbum', { eventId, eventTitle: event.metadata?.title })}
+              >
+                <LinearGradient
+                  colors={['rgba(28,29,29,0.95)', 'rgba(17,18,18,0.95)']}
+                  style={StyleSheet.absoluteFillObject}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+                <Ionicons name="images-outline" size={24} color={c.primary} style={{ marginBottom: 6 }} />
+                <Text style={styles.featureCardTitle}>Recuerdos</Text>
+                <Text style={styles.featureCardDesc}>Álbum colaborativo de fotografías.</Text>
+              </PressableScale>
+
+              <PressableScale
+                style={styles.featureCard}
+                onPress={() => navigation.navigate('Matchmaking', { eventId, eventTitle: event.metadata?.title })}
+              >
+                <LinearGradient
+                  colors={['rgba(28,29,29,0.95)', 'rgba(17,18,18,0.95)']}
+                  style={StyleSheet.absoluteFillObject}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+                <Ionicons name="people-outline" size={24} color={c.primary} style={{ marginBottom: 6 }} />
+                <Text style={styles.featureCardTitle}>Matchmaking</Text>
+                <Text style={styles.featureCardDesc}>Grupos de afinidad por intereses.</Text>
+              </PressableScale>
+            </View>
+          </View>
+        )}
+
+        {isOrganizer && (
+          <PressableScale
+            style={styles.organizerBanner}
+            onPress={() => navigation.navigate('OrganizerMetrics', {
+              eventId,
+              eventTitle: event.metadata?.title,
+              communitySlug: event.metadata?.communitySlug
+            })}
+          >
+            <LinearGradient
+              colors={['#252626', '#1a1b1b']}
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0.5 }}
+            />
+            <View style={styles.organizerBannerContent}>
+              <Ionicons name="analytics-outline" size={24} color={c.secondary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.organizerBannerTitle}>Métricas del Organizador</Text>
+                <Text style={styles.organizerBannerDesc}>Ver impacto académico, registros y asistencia en tiempo real.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.outline} />
+            </View>
+          </PressableScale>
+        )}
         <View style={styles.descriptionSection}>
           <Text style={styles.sectionTitle}>{t.eventDetail.aboutSeminar}</Text>
           <Text style={styles.description}>{event.metadata?.description}</Text>
@@ -205,5 +312,64 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     backgroundColor: 'rgba(37,38,38,0.6)',
+  },
+  coreFeaturesSection: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  coreFeaturesTitle: {
+    ...typography.headline_md,
+    color: colors.on_surface,
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
+  featuresGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  featureCard: {
+    flex: 1,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface_container_high,
+    overflow: 'hidden',
+    minHeight: 110,
+    justifyContent: 'flex-start',
+    gap: spacing.xs,
+  },
+  featureCardTitle: {
+    ...typography.title_md,
+    color: colors.on_surface,
+    fontWeight: '700',
+  },
+  featureCardDesc: {
+    ...typography.body_sm,
+    color: colors.outline,
+    fontSize: 10,
+    lineHeight: 14,
+  },
+  organizerBanner: {
+    marginTop: spacing.lg,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.surface_container_high,
+  },
+  organizerBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  organizerBannerTitle: {
+    ...typography.title_lg,
+    color: colors.on_surface,
+    fontWeight: '700',
+  },
+  organizerBannerDesc: {
+    ...typography.body_sm,
+    color: colors.outline,
+    fontSize: 11,
+    lineHeight: 15,
   },
 });

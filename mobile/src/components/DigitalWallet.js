@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../theme/tokens';
 import { useLanguageStore } from '../store/languageStore';
 
-export default function DigitalWallet({ wallet = [], credentials = [], t: tProp }) {
+export default function DigitalWallet({ wallet = [], credentials = [], t: tProp, onTicketPress }) {
   const { t: tStore } = useLanguageStore();
   const t = tProp || tStore;
 
@@ -36,15 +36,20 @@ export default function DigitalWallet({ wallet = [], credentials = [], t: tProp 
         <View style={styles.walletSection}>
           <Text style={styles.walletTitle}>{t.profile.institutionalAccess}</Text>
           {wallet.map((ticket, index) => (
-            <View key={index} style={styles.walletCard}>
+            <TouchableOpacity 
+              key={index} 
+              style={styles.walletCard} 
+              onPress={() => onTicketPress && onTicketPress(ticket)}
+              activeOpacity={0.8}
+            >
               <View style={styles.walletAccent} />
               <View style={styles.walletContent}>
                 <Text style={styles.walletLabel}>{t.profile.accessPass}</Text>
                 <Text style={styles.walletEventName} numberOfLines={1}>{ticket.eventId?.metadata?.title || ticket.accessType}</Text>
                 <Text style={styles.walletDate}>{ticket.eventId?.location?.venue || 'Conservatorio Principal'}</Text>
               </View>
-              <Ionicons name="qr-code-outline" size={24} color={colors.primary} />
-            </View>
+              <Ionicons name="qr-code-outline" size={24} color={colors.primary} style={{ marginRight: spacing.lg }} />
+            </TouchableOpacity>
           ))}
         </View>
       )}

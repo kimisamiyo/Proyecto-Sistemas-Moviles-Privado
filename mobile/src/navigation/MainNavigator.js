@@ -19,6 +19,12 @@ import ChatScreen from '../screens/ChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SquadsScreen from '../screens/SquadsScreen';
 import CreateSquadScreen from '../screens/CreateSquadScreen';
+import TicketQRScreen from '../screens/TicketQRScreen';
+import EventWallScreen from '../screens/EventWallScreen';
+import EventAlbumScreen from '../screens/EventAlbumScreen';
+import MatchmakingScreen from '../screens/MatchmakingScreen';
+import OrganizerMetricsScreen from '../screens/OrganizerMetricsScreen';
+import CreateEventScreen from '../screens/CreateEventScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -120,7 +126,15 @@ export default function MainNavigator() {
             <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         ) : (
-          <Stack.Screen name="MainTabs" component={TabNavigator} />
+          <>
+            <Stack.Screen name="MainTabs" component={TabNavigator} />
+            <Stack.Screen name="TicketQR" component={TicketQRScreen} />
+            <Stack.Screen name="EventWall" component={EventWallScreen} />
+            <Stack.Screen name="EventAlbum" component={EventAlbumScreen} />
+            <Stack.Screen name="Matchmaking" component={MatchmakingScreen} />
+            <Stack.Screen name="OrganizerMetrics" component={OrganizerMetricsScreen} />
+            <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
