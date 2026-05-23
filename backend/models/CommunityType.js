@@ -16,6 +16,7 @@ const ThemeSchema = new mongoose.Schema({
   gradient: [String],
   pattern: String,
   fontAccent: { type: String, default: 'Manrope' },
+  bannerImage: { type: String, default: '' },
 }, { _id: false });
 
 const MatchmakingConfigSchema = new mongoose.Schema({

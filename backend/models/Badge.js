@@ -5,6 +5,7 @@ const BadgeSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, default: '' },
   icon: { type: String, default: 'ribbon-outline' },
+  imageUrl: { type: String, default: '' },
   tier: {
     type: String,
     enum: ['bronze', 'silver', 'gold', 'platinum'],

@@ -26,7 +26,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "EventUs usa tu galería para portadas de eventos y recuerdos."
+        }
+      ]
     ]
   }
 }

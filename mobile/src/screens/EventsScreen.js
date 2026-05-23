@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl
+  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { colors, typography, spacing, radius } from '../theme/tokens';
 import { useEventStore } from '../store/eventStore';
 import { useLanguageStore } from '../store/languageStore';
 import { useAuthStore } from '../store/authStore';
+import NotificationBell from '../components/ui/NotificationBell';
 
 export default function EventsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -63,12 +64,14 @@ export default function EventsScreen({ navigation }) {
   const renderEvent = ({ item }) => {
     const spotsLeft = item.capacity?.max - item.capacity?.current;
     const eventDate = new Date(item.schedule?.date);
+    const cover = item.metadata?.coverImage;
     return (
       <TouchableOpacity
         style={styles.eventCard}
         onPress={() => navigation.navigate('EventDetail', { eventId: item._id })}
         activeOpacity={0.85}
       >
+        {cover ? <Image source={{ uri: cover }} style={styles.eventCover} /> : null}
         {item.isFeatured && <View style={styles.featuredAccent} />}
         <View style={styles.cardBody}>
           <View style={styles.cardTop}>
@@ -108,8 +111,11 @@ export default function EventsScreen({ navigation }) {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Text style={styles.headerLabel}>{t.events.headerLabel}</Text>
-        <Text style={styles.headerTitle}>{t.events.headerTitle}</Text>
+        <View style={styles.headerText}>
+          <Text style={styles.headerLabel}>{t.events.headerLabel}</Text>
+          <Text style={styles.headerTitle}>{t.events.headerTitle}</Text>
+        </View>
+        <NotificationBell navigation={navigation} />
       </View>
 
       <View style={styles.tabsContainer}>
@@ -186,7 +192,14 @@ export default function EventsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  header: { paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  headerText: { flex: 1 },
   headerLabel: { ...typography.label_sm, color: colors.outline, letterSpacing: 2, marginBottom: 4 },
   headerTitle: { ...typography.display_sm, color: colors.on_surface },
   tabsContainer: { 
@@ -215,7 +228,15 @@ const styles = StyleSheet.create({
   filterText: { ...typography.label_md, color: colors.secondary },
   filterTextActive: { color: colors.on_primary, fontWeight: '600' },
   list: { paddingHorizontal: spacing.xl, gap: spacing.lg },
-  eventCard: { backgroundColor: colors.surface_container_high, borderRadius: radius.lg, overflow: 'hidden' },
+  eventCard: {
+    backgroundColor: colors.surface_container_lowest,
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.surface_container_high,
+    marginBottom: spacing.md,
+  },
+  eventCover: { width: '100%', height: 120, backgroundColor: colors.surface_container_high },
   featuredAccent: { height: 2, backgroundColor: colors.primary },
   cardBody: { padding: spacing.xl, gap: spacing.sm },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -7,6 +7,7 @@ const NotificationSchema = new mongoose.Schema({
     enum: [
       'welcome', 'event_register', 'squad_join', 'squad_full', 'squad_invite',
       'match_found', 'wall_reply', 'badge_earned', 'email_sent',
+      'album_pending', 'album_approved', 'album_rejected',
     ],
     required: true,
   },

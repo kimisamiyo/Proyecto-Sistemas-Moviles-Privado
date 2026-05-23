@@ -1,5 +1,6 @@
 const Squad = require('../models/Squad');
 const Event = require('../models/Event');
+const { isEventActive } = require('../utils/eventSchedule');
 const User = require('../models/User');
 const { sendSquadJoin, sendSquadAlmostFull } = require('../services/emailService');
 const { createNotification, notifySquadUpdate } = require('../services/notificationService');
@@ -25,16 +26,24 @@ const listOpenSquads = async (req, res) => {
     const squads = await Squad.find(query)
       .populate('leader', 'profile.firstName profile.lastName profile.avatar')
       .populate('members.user', 'profile.firstName profile.lastName profile.avatar')
-      .populate('event', 'metadata.title metadata.communitySlug schedule.date location.venue')
+      .populate(
+        'event',
+        'metadata.title metadata.communitySlug metadata.coverImage schedule.date schedule.startTime schedule.endTime location.venue'
+      )
       .sort({ updatedAt: -1 })
       .limit(parseInt(limit, 10));
 
-    const recruiting = squads.filter((s) => s.status === 'recruiting' || s.slotsOpen > 0);
+    const activeEventSquads = squads.filter(
+      (s) => s.event?.schedule && isEventActive(s.event.schedule)
+    );
+    const recruiting = activeEventSquads.filter(
+      (s) => s.status === 'recruiting' || s.slotsOpen > 0
+    );
 
     res.json({
-      squads: squads.map(formatSquad),
+      squads: activeEventSquads.map(formatSquad),
       recruiting: recruiting.map(formatSquad),
-      total: squads.length,
+      total: activeEventSquads.length,
     });
   } catch (error) {
     console.error('listOpenSquads:', error);
@@ -50,11 +59,16 @@ const getMySquads = async (req, res) => {
         { 'members.user': req.user._id, 'members.status': 'active' },
       ],
     })
-      .populate('event', 'metadata.title schedule.date location.venue')
+      .populate(
+        'event',
+        'metadata.title metadata.communitySlug metadata.coverImage schedule.date schedule.startTime schedule.endTime location.venue'
+      )
       .populate('members.user', 'profile.firstName profile.lastName profile.avatar')
       .sort({ updatedAt: -1 });
 
-    res.json({ squads: squads.map(formatSquad) });
+    const activeOnly = squads.filter((s) => s.event?.schedule && isEventActive(s.event.schedule));
+
+    res.json({ squads: activeOnly.map(formatSquad) });
   } catch (error) {
     res.status(500).json({ error: 'Error al cargar tus escuadras.' });
   }
@@ -77,10 +91,6 @@ const createSquad = async (req, res) => {
   try {
     const event = await Event.findById(req.body.eventId);
     if (!event) return res.status(404).json({ error: 'Evento no encontrado.' });
-    if (!event.features?.matchmakingEnabled && event.features?.matchmakingEnabled !== undefined) {
-      return res.status(400).json({ error: 'Este evento no permite escuadras.' });
-    }
-
     const maxSize = req.body.maxSize || 5;
     const squad = await Squad.create({
       event: event._id,
@@ -125,15 +135,47 @@ const createSquad = async (req, res) => {
   }
 };
 
+const leaveUserFromEventSquads = async (userId, eventId, exceptSquadId = null) => {
+  const query = {
+    event: eventId,
+    'members.user': userId,
+    'members.status': 'active',
+  };
+  if (exceptSquadId) query._id = { $ne: exceptSquadId };
+
+  const others = await Squad.find(query);
+  for (const s of others) {
+    const member = s.members.find((m) => m.user.toString() === userId.toString());
+    if (member) member.status = 'left';
+    if (s.leader?.toString() === userId.toString()) {
+      const next = s.members.find(
+        (m) => m.status === 'active' && m.user.toString() !== userId.toString()
+      );
+      if (next) {
+        s.leader = next.user;
+        next.role = 'leader';
+      } else {
+        s.status = 'cancelled';
+      }
+    }
+    s.syncStatus();
+    await s.save();
+  }
+};
+
 const joinSquad = async (req, res) => {
   try {
     const squad = await Squad.findById(req.params.squadId).populate('event');
     if (!squad) return res.status(404).json({ error: 'Escuadra no encontrada.' });
 
+    const eventId = squad.event?._id || squad.event;
+
     const already = squad.members.find(
       (m) => m.user.toString() === req.user._id.toString() && m.status === 'active'
     );
     if (already) return res.status(400).json({ error: 'Ya estás en esta escuadra.' });
+
+    await leaveUserFromEventSquads(req.user._id, eventId, squad._id);
 
     const activeCount = squad.members.filter((m) => m.status === 'active').length;
     if (activeCount >= squad.maxSize) {
@@ -185,10 +227,11 @@ const joinSquad = async (req, res) => {
 
     res.json({
       squad: formatted,
+      switched: true,
       message:
         squad.joinPolicy === 'approval' && !already
           ? 'Solicitud enviada al líder.'
-          : '¡Te uniste a la escuadra!',
+          : '¡Te uniste a la escuadra! (solo puedes estar en una por evento)',
     });
   } catch (error) {
     console.error('joinSquad:', error);

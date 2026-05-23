@@ -12,6 +12,8 @@ const {
   getEventMetrics,
   getAlbum,
   addAlbumPhoto,
+  reviewAlbumPhoto,
+  getMyTicket,
   refreshTicketQR,
   getWhatsAppInvite,
   getUserBadgeWall,
@@ -27,6 +29,8 @@ router.post('/events/:eventId/groups/join', auth, joinMatchmaking);
 router.get('/events/:eventId/metrics', auth, getEventMetrics);
 router.get('/events/:eventId/album', auth, getAlbum);
 router.post('/events/:eventId/album', auth, addAlbumPhoto);
+router.patch('/events/:eventId/album/photos/:photoId', auth, reviewAlbumPhoto);
+router.get('/events/:eventId/ticket', auth, getMyTicket);
 router.post('/events/:eventId/ticket/refresh', auth, refreshTicketQR);
 router.get('/events/:eventId/invite/whatsapp', auth, getWhatsAppInvite);
 

@@ -3,12 +3,18 @@ import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../theme/tokens';
 import { COMMUNITY_THEMES, getCommunityTheme } from '../theme/communityThemes';
+import { useLayout } from '../utils/responsive';
 
 export default function CommunityFilterBar({ communities = [], selected, onSelect }) {
+  const { horizontalPad } = useLayout();
   const items = communities.length ? communities : Object.values(COMMUNITY_THEMES);
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[styles.row, { paddingHorizontal: horizontalPad }]}
+    >
       <TouchableOpacity
         style={[styles.chip, !selected && styles.chipActive]}
         onPress={() => onSelect(null)}
@@ -38,7 +44,7 @@ export default function CommunityFilterBar({ communities = [], selected, onSelec
 }
 
 const styles = StyleSheet.create({
-  row: { gap: spacing.sm, paddingHorizontal: spacing.xl, paddingBottom: spacing.md },
+  row: { gap: spacing.sm, paddingBottom: spacing.md },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

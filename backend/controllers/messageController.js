@@ -1,5 +1,6 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
+const Connection = require('../models/Connection');
 
 const getConversations = async (req, res) => {
   try {
@@ -92,6 +93,19 @@ const sendMessage = async (req, res) => {
 
     if (!receiverId || !content) {
       return res.status(400).json({ error: 'Receiver and content are required.' });
+    }
+
+    const connected = await Connection.findOne({
+      status: 'accepted',
+      $or: [
+        { requester: req.user._id, recipient: receiverId },
+        { requester: receiverId, recipient: req.user._id },
+      ],
+    });
+    if (!connected) {
+      return res.status(403).json({
+        error: 'Debes estar conectado con esta persona. Envía una solicitud desde su perfil.',
+      });
     }
 
     const message = new Message({

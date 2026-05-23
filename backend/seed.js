@@ -12,6 +12,10 @@ const CollaborativeAlbum = require('./models/CollaborativeAlbum');
 const Discourse = require('./models/Discourse');
 const Message = require('./models/Message');
 const Connection = require('./models/Connection');
+const Ticket = require('./models/Ticket');
+const MatchGroup = require('./models/MatchGroup');
+const { generateQRToken } = require('./utils/qrGenerator');
+const { pickAvatar, pickCover, pickAlbumPhoto, pickBadge, coverForSlug } = require('./config/demoImages');
 
 const lima = (lng, lat) => ({ type: 'Point', coordinates: [lng, lat] });
 
@@ -22,7 +26,10 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
     }
     console.log('\n  ⟐ EventUs — reiniciando base de datos...\n');
 
-    const collections = [User, Event, CommunityType, Badge, EventWall, Squad, Notification, CollaborativeAlbum, Discourse, Message, Connection];
+    const collections = [
+      User, Event, CommunityType, Badge, EventWall, Squad, Notification,
+      CollaborativeAlbum, Discourse, Message, Connection, Ticket, MatchGroup,
+    ];
     for (const Model of collections) await Model.deleteMany({});
 
     console.log('  ⟐ Tipos de comunidad y temas...');
@@ -34,7 +41,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         description: c.description,
         icon: c.icon,
         mood: c.mood,
-        theme: c.theme,
+        theme: { ...c.theme, bannerImage: coverForSlug(c.slug) },
         matchmaking: c.matchmaking,
         badgeSlugs: c.badges,
         sortOrder: i,
@@ -43,25 +50,28 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
 
     console.log('  ⟐ Catálogo de insignias...');
     const badges = await Badge.insertMany(
-      BADGE_CATALOG.map((b) => ({
+      BADGE_CATALOG.map((b, i) => ({
         ...b,
+        imageUrl: pickBadge(i),
         communitySlugs: COMMUNITY_THEMES.filter((c) => c.badges.includes(b.slug)).map((c) => c.slug),
       }))
     );
     const badgeBySlug = Object.fromEntries(badges.map((b) => [b.slug, b]));
 
-    console.log('  ⟐ Usuarios EventUs...');
+    console.log('  ⟐ Usuarios (1 por rol — equipo URP + moderador/admin demo)...');
+    // Índices: [0]=organizer, [1]=creator, [2]=member, [3]=moderator, [4]=admin
     const users = await User.create([
       {
-        email: 'sofia.impacto@eventus.pe',
+        role: 'organizer',
+        email: 'mayrol.ortiz@gmail.com',
         passwordHash: 'demo123',
         profile: {
-          firstName: 'Sofía',
-          lastName: 'Mendoza',
-          bio: 'Organizadora de brigadas verdes y voluntariado juvenil en Lima Sur.',
-          title: 'Líder comunitaria',
-          avatar: 'https://randomuser.me/api/portraits/women/65.jpg',
-          interests: ['voluntariado', 'medio ambiente', 'educación'],
+          firstName: 'Mayrol',
+          lastName: 'Ortiz',
+          bio: 'Organizador principal — eventos con impacto URP.',
+          title: 'Organizador EventUs',
+          avatar: pickAvatar(0),
+          interests: ['voluntariado', 'medio ambiente'],
           communityAffinities: ['voluntariado', 'medio_ambiente'],
         },
         preferences: { favoriteCommunities: ['voluntariado', 'medio_ambiente'], matchmakingOpen: true },
@@ -75,61 +85,92 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         isOnline: true,
       },
       {
-        email: 'mateo.social@eventus.pe',
+        role: 'creator',
+        email: '202211307@urp.edu.pe',
         passwordHash: 'demo123',
         profile: {
-          firstName: 'Mateo',
-          lastName: 'Rivas',
-          bio: 'Conector de quedadas: board games, café y caminatas urbanas.',
-          title: 'Anfitrión de quedadas',
-          avatar: 'https://randomuser.me/api/portraits/men/41.jpg',
-          interests: ['quedadas', 'cultura', 'deporte'],
+          firstName: 'Creador',
+          lastName: 'URP 307',
+          bio: 'Creador de quedadas, lives y escuadras.',
+          title: 'Creador de contenido',
+          avatar: pickAvatar(1),
+          interests: ['quedadas', 'cultura', 'concierto'],
           communityAffinities: ['quedada', 'concierto'],
         },
         badges: [{ slug: 'anfitrion_quedada', badge: badgeBySlug.anfitrion_quedada._id }],
-        metrics: { eventsAttended: 28, eventsCreated: 5, impactPoints: 210, invitesSent: 52 },
+        metrics: { eventsAttended: 20, eventsCreated: 5, impactPoints: 210, invitesSent: 40 },
         creatorProfile: { isCreator: true, eventsPublished: 5 },
         location: lima(-77.03, -12.12),
         isOnline: true,
       },
       {
-        email: 'lucia.causa@eventus.pe',
+        role: 'member',
+        email: '202220906@urp.edu.pe',
         passwordHash: 'demo123',
         profile: {
-          firstName: 'Lucía',
-          lastName: 'Vega',
-          bio: 'Coordinadora de eventos benéficos y campañas solidarias.',
-          title: 'Gestora de causas',
-          avatar: 'https://randomuser.me/api/portraits/women/32.jpg',
-          interests: ['benefico', 'voluntariado'],
-          communityAffinities: ['benefico'],
-        },
-        badges: [{ slug: 'embajador_causa', badge: badgeBySlug.embajador_causa._id }],
-        metrics: { eventsAttended: 19, eventsCreated: 6, impactPoints: 280, invitesSent: 88 },
-        creatorProfile: { isCreator: true, verifiedOrganizer: true, eventsPublished: 6 },
-        location: lima(-77.01, -12.09),
-        isOnline: false,
-      },
-      {
-        email: 'demo@eventus.app',
-        passwordHash: 'demo123',
-        profile: {
-          firstName: 'Explorador',
-          lastName: 'EventUs',
-          bio: 'Cuenta demo para descubrir eventos con propósito cerca de ti.',
-          title: 'Miembro de la comunidad',
-          avatar: 'https://randomuser.me/api/portraits/men/55.jpg',
-          interests: ['voluntariado', 'quedada', 'cultura'],
+          firstName: 'Miembro',
+          lastName: 'URP 906',
+          bio: 'Explora eventos, escuadras e inscripciones.',
+          title: 'Miembro URP',
+          avatar: pickAvatar(2),
+          interests: ['voluntariado', 'quedada', 'deporte'],
           communityAffinities: ['quedada', 'voluntariado'],
         },
         badges: [{ slug: 'radar_activo', badge: badgeBySlug.radar_activo._id }],
-        metrics: { eventsAttended: 3, impactPoints: 45, invitesSent: 2 },
+        metrics: { eventsAttended: 5, impactPoints: 55, invitesSent: 3 },
         location: lima(-76.96, -12.11),
+        isOnline: true,
+      },
+      {
+        role: 'moderator',
+        email: 'moderador@eventus.app',
+        passwordHash: 'demo123',
+        profile: {
+          firstName: 'Moderador',
+          lastName: 'EventUs',
+          bio: 'Modera muros, escuadras y reportes.',
+          title: 'Moderador',
+          avatar: pickAvatar(3),
+          interests: ['cultura', 'deporte'],
+          communityAffinities: ['cultura'],
+        },
+        badges: [{ slug: 'radar_activo', badge: badgeBySlug.radar_activo._id }],
+        metrics: { eventsAttended: 10, impactPoints: 120, invitesSent: 15 },
+        location: lima(-77.0, -12.1),
+        isOnline: true,
+      },
+      {
+        role: 'admin',
+        email: 'admin@eventus.app',
+        passwordHash: 'demo123',
+        profile: {
+          firstName: 'Admin',
+          lastName: 'EventUs',
+          bio: 'Administración global de la plataforma.',
+          title: 'Administrador',
+          avatar: pickAvatar(4),
+          interests: ['voluntariado', 'benefico'],
+          communityAffinities: ['voluntariado'],
+        },
+        badges: [
+          { slug: 'guardian_verde', badge: badgeBySlug.guardian_verde._id },
+          { slug: 'embajador_causa', badge: badgeBySlug.embajador_causa._id },
+        ],
+        metrics: { eventsAttended: 30, eventsCreated: 10, impactPoints: 900, invitesSent: 100 },
+        creatorProfile: { isCreator: true, verifiedOrganizer: true, eventsPublished: 10 },
+        location: lima(-76.95, -12.08),
         isOnline: true,
       },
     ]);
 
-    const mkEvent = (data) => data;
+    let eventCoverIdx = 0;
+    const mkEvent = (data) => ({
+      ...data,
+      metadata: {
+        ...data.metadata,
+        coverImage: data.metadata?.coverImage || pickCover(eventCoverIdx++),
+      },
+    });
 
     console.log('  ⟐ Eventos con impacto social...');
     const events = await Event.create([
@@ -147,7 +188,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         location: { venue: 'Costa Verde — Chorrillos', address: 'Malecón, Chorrillos', coordinates: lima(-77.02, -12.18) },
         capacity: { max: 80, current: 34 },
         hosts: [{ userId: users[0]._id, role: 'Organizador' }],
-        attendees: [users[3]._id],
+        attendees: [users[2]._id],
         isLive: false,
         isFeatured: true,
         createdBy: users[0]._id,
@@ -166,9 +207,9 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         schedule: { date: new Date('2026-06-02'), startTime: '16:00', endTime: '22:00' },
         location: { venue: 'Plaza Bolognesi', address: 'Miraflores, Lima', coordinates: lima(-77.03, -12.12) },
         capacity: { max: 300, current: 112 },
-        hosts: [{ userId: users[2]._id, role: 'Organizador' }],
+        hosts: [{ userId: users[0]._id, role: 'Organizador' }],
         isFeatured: true,
-        createdBy: users[2]._id,
+        createdBy: users[0]._id,
         metrics: { views: 890, registrations: 112, shares: 64 },
       }),
       mkEvent({
@@ -183,9 +224,10 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         location: { venue: 'Café Literario Barranco', address: 'Barranco, Lima', coordinates: lima(-77.02, -12.15) },
         capacity: { max: 24, current: 18 },
         hosts: [{ userId: users[1]._id, role: 'Organizador' }],
-        attendees: [users[3]._id],
+        attendees: [users[2]._id],
         isLive: true,
         createdBy: users[1]._id,
+        speakers: [{ userId: users[1]._id, role: 'Anfitrión' }],
         metrics: { views: 310, registrations: 18, matchGroupsFormed: 3 },
       }),
       mkEvent({
@@ -216,6 +258,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         isLive: true,
         isFeatured: true,
         createdBy: users[1]._id,
+        speakers: [{ userId: users[1]._id, role: 'DJ invitado' }],
         metrics: { views: 2100, registrations: 287, shares: 140 },
       }),
       mkEvent({
@@ -242,7 +285,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         schedule: { date: new Date('2026-06-20'), startTime: '10:00', endTime: '14:00' },
         location: { venue: 'Pasaje Santa Rosa', address: 'Barranco', coordinates: lima(-77.02, -12.15) },
         capacity: { max: 30, current: 14 },
-        createdBy: users[2]._id,
+        createdBy: users[0]._id,
       }),
       mkEvent({
         metadata: {
@@ -262,34 +305,83 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
       }),
     ]);
 
-    console.log('  ⟐ Muros, grupos y álbumes...');
-    for (const event of events) {
+    console.log('  ⟐ Muros, álbumes y mensajes...');
+    let albumIdx = 0;
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      const authorPool = [users[0], users[1], users[2], users[3], users[4]];
       await EventWall.create({
         event: event._id,
         posts: [
           {
             author: event.createdBy,
-            content: `¡Bienvenidos al muro de "${event.metadata.title}"! Usen este espacio para romper el hielo y coordinar logística.`,
+            content: `¡Bienvenidos al muro de "${event.metadata.title}"! Rompan el hielo y coordinen logística aquí.`,
             type: 'announcement',
             isPinned: true,
           },
           {
-            author: users[3]._id,
-            content: '¿Alguien va desde Surco? Podemos coordinar movilidad en grupo.',
+            author: authorPool[i % authorPool.length]._id,
+            content: '¿Alguien va desde Surco? Podemos ir en escuadra.',
             type: 'logistics',
           },
+          {
+            author: users[2]._id,
+            content: 'Primera vez en este tipo de evento — ¡emocionado! 🌱',
+            type: 'icebreaker',
+          },
         ],
-        stats: { totalPosts: 2, activeParticipants: 2 },
+        stats: { totalPosts: 3, activeParticipants: 3 },
       });
 
+      const photos = [0, 1, 2].map((j) => ({
+        url: pickAlbumPhoto(albumIdx + j),
+        caption: `Momento ${j + 1} — ${event.metadata.title}`,
+        uploader: authorPool[(i + j) % authorPool.length]._id,
+        status: 'approved',
+        reviewedAt: new Date(),
+      }));
+      albumIdx += 3;
 
       await CollaborativeAlbum.create({
         event: event._id,
         title: `Recuerdos — ${event.metadata.title}`,
-        photos: [],
-        stats: { totalPhotos: 0, contributors: 0 },
+        photos,
+        stats: { totalPhotos: photos.length, contributors: 2 },
       });
     }
+
+    await Message.insertMany([
+      {
+        sender: users[1]._id,
+        receiver: users[2]._id,
+        content: '¡Hola! ¿Te unes a la quedada de board games el viernes?',
+        read: false,
+      },
+      {
+        sender: users[2]._id,
+        receiver: users[1]._id,
+        content: 'Sí, me apunto. ¿Llevo algún juego?',
+        read: true,
+      },
+      {
+        sender: users[0]._id,
+        receiver: users[2]._id,
+        content: 'Gracias por inscribirte a la brigada verde. Trae botella reutilizable.',
+        read: false,
+      },
+      {
+        sender: users[2]._id,
+        receiver: users[2]._id,
+        content: 'La feria solidaria necesita 2 voluntarios más para la entrada.',
+        read: false,
+      },
+      {
+        sender: users[4]._id,
+        receiver: users[2]._id,
+        content: 'Recuerda revisar las notificaciones de tu escuadra.',
+        read: false,
+      },
+    ]);
 
     const quedadaEvent = events.find((e) => e.metadata.communitySlug === 'quedada');
 
@@ -323,7 +415,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         status: 'recruiting',
         members: [
           { user: users[0]._id, role: 'leader', status: 'active', planNote: 'Guantes extra M/L' },
-          { user: users[3]._id, role: 'member', status: 'active', planNote: 'Primera vez, motivado' },
+          { user: users[2]._id, role: 'member', status: 'active', planNote: 'Primera vez, motivado' },
         ],
       },
       {
@@ -344,26 +436,111 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
       },
     ]);
 
+    console.log('  ⟐ Entradas (tickets) y billetera del miembro URP...');
+    const member = await User.findById(users[2]._id);
+    const seedTicket = async (eventDoc) => {
+      const { token, tokenHash, expiresAt } = await generateQRToken(member._id, eventDoc._id, 0);
+      const ticket = await Ticket.create({
+        user: member._id,
+        event: eventDoc._id,
+        tokenHash,
+        expiresAt,
+        rotationIndex: 0,
+      });
+      const alreadyInWallet = member.wallet.some(
+        (w) => String(w.eventId) === String(eventDoc._id)
+      );
+      if (!alreadyInWallet) {
+        member.wallet.push({
+          eventId: eventDoc._id,
+          ticketId: ticket._id,
+          qrToken: token,
+          accessType: 'Entrada EventUs',
+          issuedAt: new Date(),
+        });
+      }
+      return ticket;
+    };
+
+    await seedTicket(events[0]);
+    await seedTicket(events[2]);
+    await seedTicket(events[4]);
+    member.metrics.eventsAttended = Math.max(member.metrics.eventsAttended, 3);
+    await member.save();
+
+    await MatchGroup.create({
+      event: quedadaEvent._id,
+      communitySlug: 'quedada',
+      name: 'Mesa 1 — Estrategia',
+      maxSize: 6,
+      status: 'forming',
+      createdBy: users[1]._id,
+      members: [
+        { user: users[1]._id, status: 'accepted', affinityScore: 88 },
+        { user: users[2]._id, status: 'accepted', affinityScore: 72 },
+        { user: users[0]._id, status: 'accepted', affinityScore: 65 },
+      ],
+    });
+
     await Connection.create([
       { requester: users[0]._id, recipient: users[1]._id, status: 'accepted' },
-      { requester: users[2]._id, recipient: users[3]._id, status: 'accepted' },
+      { requester: users[1]._id, recipient: users[2]._id, status: 'accepted' },
     ]);
 
-    await Notification.create({
-      user: users[3]._id,
-      type: 'squad_full',
-      title: '¡Falta 1 en Squad Poké-Kennedy!',
-      body: '4/5 listos — únete con el mismo plan de raid',
-      data: { squadId: squads[0]._id },
-    });
+    await Notification.insertMany([
+      {
+        user: users[2]._id,
+        type: 'squad_full',
+        title: '¡Falta 1 en Squad Poké-Kennedy!',
+        body: '4/5 listos — únete con el mismo plan de raid',
+        data: { squadId: squads[0]._id },
+        read: false,
+      },
+      {
+        user: users[2]._id,
+        type: 'event_register',
+        title: 'Inscripción confirmada',
+        body: `Tu entrada para "${events[0].metadata.title}" está en Mis entradas`,
+        data: { eventId: events[0]._id },
+        read: false,
+      },
+      {
+        user: users[2]._id,
+        type: 'event_register',
+        title: 'Inscripción confirmada',
+        body: `QR activo — ${events[2].metadata.title}`,
+        data: { eventId: events[2]._id },
+        read: true,
+      },
+      {
+        user: users[2]._id,
+        type: 'squad_invite',
+        title: 'Te invitaron a una escuadra',
+        body: '¿Te unes a la quedada de board games?',
+        read: false,
+      },
+      {
+        user: users[0]._id,
+        type: 'badge_earned',
+        title: 'Nueva inscripción',
+        body: 'Un miembro URP se unió a tu brigada',
+        read: true,
+      },
+    ]);
 
     console.log(`\n  ✦ EventUs seed completado`);
     console.log(`  ✓ ${communities.length} comunidades con tema visual`);
     console.log(`  ✓ ${badges.length} insignias`);
     console.log(`  ✓ ${users.length} usuarios`);
     console.log(`  ✓ ${events.length} eventos`);
-    console.log(`  ✓ ${squads.length} escuadras (ej: Pokémon 4/5)\n`);
-    console.log('  Demo: demo@eventus.app / demo123\n');
+    console.log(`  ✓ ${squads.length} escuadras`);
+    console.log(`  ✓ 3 entradas en billetera del miembro (202220906@urp.edu.pe)\n`);
+    console.log('  Roles en la app (5) — contraseña: demo123');
+    console.log('    • member     → 202220906@urp.edu.pe');
+    console.log('    • creator    → 202211307@urp.edu.pe');
+    console.log('    • organizer  → mayrol.ortiz@gmail.com');
+    console.log('    • moderator  → moderador@eventus.app');
+    console.log('    • admin      → admin@eventus.app\n');
     if (exitOnComplete) process.exit(0);
   } catch (error) {
     console.error('\n  ✗ Seed falló:', error);

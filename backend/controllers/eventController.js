@@ -7,6 +7,9 @@ const { sendEventRegistration } = require('../services/emailService');
 const { createNotification } = require('../services/notificationService');
 const { formatSquad } = require('./squadController');
 const Squad = require('../models/Squad');
+const { buildTicketView } = require('../utils/ticketPayload');
+const { enrichEventSchedule, getEventPhase, isEventActive } = require('../utils/eventSchedule');
+const { getMyTicket, refreshTicketQR } = require('./eventusController');
 
 const populateEventQuery = (query) =>
   query
@@ -22,26 +25,35 @@ const explore = async (req, res) => {
     if (type) query['metadata.type'] = type;
     if (req.query.community) query['metadata.communitySlug'] = req.query.community;
 
-    const events = await populateEventQuery(Event.find(query))
-      .sort({ 'schedule.date': 1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    const now = new Date();
+    const allFetched = await populateEventQuery(Event.find(query)).sort({ 'schedule.date': 1 });
+    const enrichedAll = allFetched.map((e) => enrichEventSchedule(e, now));
+    const activeEvents = enrichedAll.filter((e) => isEventActive(e.schedule, now));
+    const events = activeEvents.slice((page - 1) * limit, page * limit);
+    const liveEvents = activeEvents.filter((e) => e.schedulePhase === 'live');
 
-    const liveEvents = await populateEventQuery(Event.find({ isLive: true })).limit(10);
     const communities = await CommunityType.find({ isActive: true }).sort({ sortOrder: 1 });
-    const total = await Event.countDocuments(query);
+    const total = activeEvents.length;
 
-    const openSquads = await Squad.find({ status: 'recruiting' })
-      .populate('event', 'metadata.title metadata.communitySlug')
+    const openSquadsRaw = await Squad.find({ status: 'recruiting' })
+      .populate(
+        'event',
+        'metadata.title metadata.communitySlug metadata.coverImage schedule.date schedule.startTime schedule.endTime location.venue'
+      )
       .populate('leader', 'profile.firstName profile.lastName profile.avatar')
       .sort({ updatedAt: -1 })
-      .limit(12);
+      .limit(24);
+
+    const openSquads = openSquadsRaw
+      .filter((s) => s.event && isEventActive(s.event.schedule, now))
+      .slice(0, 12)
+      .map(formatSquad);
 
     res.json({
       events,
       liveEvents,
       communities,
-      openSquads: openSquads.map(formatSquad),
+      openSquads,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -58,7 +70,7 @@ const explore = async (req, res) => {
 const getEventById = async (req, res) => {
   try {
     const event = await populateEventQuery(Event.findById(req.params.id))
-      .populate('attendees', 'profile.firstName profile.lastName profile.avatar badges');
+      .populate('attendees', 'profile.firstName profile.lastName profile.avatar profile.title badges');
 
     if (!event) return res.status(404).json({ error: 'Event not found.' });
 
@@ -67,10 +79,34 @@ const getEventById = async (req, res) => {
       .populate('leader', 'profile.firstName profile.lastName profile.avatar')
       .populate('members.user', 'profile.firstName profile.lastName profile.avatar')
       .limit(20);
+
+    const attendeeSquads = {};
+    let mySquad = null;
+    const uid = req.user?._id?.toString();
+
+    for (const squad of squads) {
+      const formatted = formatSquad(squad);
+      for (const m of squad.members || []) {
+        if (m.status !== 'active') continue;
+        const memberId = (m.user?._id || m.user)?.toString();
+        if (!memberId) continue;
+        attendeeSquads[memberId] = {
+          _id: squad._id,
+          name: squad.name,
+          plan: squad.plan,
+          activeCount: formatted.activeCount,
+          maxSize: squad.maxSize,
+        };
+        if (uid && memberId === uid) mySquad = formatted;
+      }
+    }
+
     res.json({
-      event,
+      event: enrichEventSchedule(event),
       community,
       squads: squads.map(formatSquad),
+      mySquad,
+      attendeeSquads,
     });
   } catch (error) {
     console.error('Get event error:', error);
@@ -85,18 +121,94 @@ const registerForEvent = async (req, res) => {
 
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ error: 'Event not found.' });
+      return res.status(404).json({ error: 'Evento no encontrado.' });
+    }
+
+    if (getEventPhase(event.schedule) === 'past') {
+      return res.status(400).json({ error: 'Este evento ya finalizó. Solo puedes ver el muro y los recuerdos.' });
     }
 
     if (event.capacity.isLimited && event.capacity.current >= event.capacity.max) {
-      return res.status(400).json({ error: 'Event is at full capacity.' });
+      return res.status(400).json({ error: 'El evento ya alcanzó el cupo máximo.' });
+    }
+
+    const existingTicket = await Ticket.findOne({ user: userId, event: eventId, status: 'active' });
+    if (existingTicket) {
+      const user = await User.findById(userId);
+      const walletEntry = user.wallet.find(
+        (w) => String(w.eventId) === String(eventId) || String(w.eventId?._id) === String(eventId)
+      );
+      const { token, tokenHash, qrDataUrl, expiresAt, ttlSeconds } = await generateQRToken(
+        userId,
+        eventId,
+        existingTicket.rotationIndex
+      );
+      existingTicket.tokenHash = tokenHash;
+      existingTicket.expiresAt = expiresAt;
+      existingTicket.lastRotatedAt = new Date();
+      await existingTicket.save();
+      if (walletEntry) {
+        walletEntry.qrToken = token;
+        await user.save();
+      }
+      return res.json({
+        message: 'Ya tienes una entrada activa para este evento.',
+        alreadyRegistered: true,
+        ticket: buildTicketView({
+          event,
+          user,
+          ticket: existingTicket,
+          qrDataUrl,
+          ttlSeconds,
+          token,
+          walletIssuedAt: walletEntry?.issuedAt,
+        }),
+      });
     }
 
     const alreadyRegistered = event.attendees.some(
-      attendee => attendee.toString() === userId.toString()
+      (attendee) => attendee.toString() === userId.toString()
     );
     if (alreadyRegistered) {
-      return res.status(400).json({ error: 'Already registered for this event.' });
+      const user = await User.findById(userId);
+      const { token, tokenHash, qrDataUrl, expiresAt, ttlSeconds } = await generateQRToken(
+        userId,
+        eventId,
+        0
+      );
+      const ticket = await Ticket.create({
+        user: userId,
+        event: eventId,
+        tokenHash,
+        expiresAt,
+        rotationIndex: 0,
+      });
+      const hasWallet = user.wallet.some(
+        (w) => String(w.eventId) === String(eventId) || String(w.eventId?._id) === String(eventId)
+      );
+      if (!hasWallet) {
+        user.wallet.push({
+          eventId,
+          ticketId: ticket._id,
+          qrToken: token,
+          accessType: 'Entrada EventUs',
+          issuedAt: new Date(),
+        });
+        await user.save();
+      }
+      return res.json({
+        message: 'Entrada activada. Tu QR dinámico está listo.',
+        alreadyRegistered: true,
+        ticket: buildTicketView({
+          event,
+          user,
+          ticket,
+          qrDataUrl,
+          ttlSeconds,
+          token,
+          walletIssuedAt: new Date(),
+        }),
+      });
     }
 
     const { token, tokenHash, qrDataUrl, expiresAt, ttlSeconds } = await generateQRToken(userId, eventId, 0);
@@ -142,21 +254,15 @@ const registerForEvent = async (req, res) => {
 
     res.json({
       message: 'Inscripción confirmada. Tu QR dinámico está activo.',
-      ticket: {
-        eventId,
-        ticketId: ticket._id,
-        eventTitle: event.metadata.title,
-        communitySlug: event.metadata.communitySlug,
-        qrToken: token,
+      ticket: buildTicketView({
+        event,
+        user,
+        ticket,
         qrDataUrl,
-        expiresAt,
         ttlSeconds,
-        accessType: 'Entrada EventUs',
-        venue: event.location.venue,
-        date: event.schedule.date,
-        startTime: event.schedule.startTime,
-        inviteCode: event.sharing.inviteCode,
-      },
+        token,
+        walletIssuedAt: new Date(),
+      }),
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -175,7 +281,8 @@ const radar = async (req, res) => {
     const lng = parseFloat(longitude);
     const lat = parseFloat(latitude);
 
-    const nearbyEvents = await Event.find({
+    const now = new Date();
+    const nearbyRaw = await Event.find({
       'location.coordinates': {
         $near: {
           $geometry: {
@@ -187,7 +294,12 @@ const radar = async (req, res) => {
       }
     })
     .populate('speakers.userId', 'profile.firstName profile.lastName profile.avatar')
-    .limit(20);
+    .limit(40);
+
+    const nearbyEvents = nearbyRaw
+      .map((e) => enrichEventSchedule(e, now))
+      .filter((e) => isEventActive(e.schedule, now))
+      .slice(0, 20);
 
     const nearbyUsers = await User.find({
       _id: { $ne: req.user._id },
@@ -218,13 +330,47 @@ const radar = async (req, res) => {
 
 const getAllEvents = async (req, res) => {
   try {
+    const now = new Date();
     const events = await Event.find()
       .populate('speakers.userId', 'profile.firstName profile.lastName profile.title profile.avatar')
       .sort({ 'schedule.date': 1 });
-    res.json({ events });
+    const enriched = events.map((e) => enrichEventSchedule(e, now));
+    const active = enriched.filter((e) => isEventActive(e.schedule, now));
+    res.json({ events: active });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch events.' });
   }
 };
 
-module.exports = { explore, getEventById, registerForEvent, radar, getAllEvents };
+const getAttendedPastEvents = async (req, res) => {
+  try {
+    const now = new Date();
+    const user = await User.findById(req.user._id).populate(
+      'wallet.eventId',
+      'metadata schedule location features'
+    );
+    const past = [];
+    for (const entry of user?.wallet || []) {
+      const ev = entry.eventId;
+      if (!ev?._id) continue;
+      const enriched = enrichEventSchedule(ev, now);
+      if (enriched.schedulePhase === 'past') past.push(enriched);
+    }
+    past.sort((a, b) => new Date(b.schedule?.date) - new Date(a.schedule?.date));
+    res.json({ events: past });
+  } catch (error) {
+    console.error('getAttendedPastEvents:', error);
+    res.status(500).json({ error: 'No se pudieron cargar eventos pasados.' });
+  }
+};
+
+module.exports = {
+  explore,
+  getEventById,
+  registerForEvent,
+  radar,
+  getAllEvents,
+  getAttendedPastEvents,
+  getMyTicket,
+  refreshTicketQR,
+};

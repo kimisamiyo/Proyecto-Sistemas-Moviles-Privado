@@ -11,19 +11,11 @@ import { colors, typography, spacing, radius } from '../theme/tokens';
 import { useEventStore } from '../store/eventStore';
 import { useLanguageStore } from '../store/languageStore';
 import config from '../config';
+import { smokeMapStyle } from '../utils/mapStyles';
 
 const { width, height } = Dimensions.get('window');
 
 import MapView, { Marker, Circle } from 'react-native-maps';
-
-const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#131313' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#767575' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0e0e0e' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1f2020' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e0e0e' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#1f2020' }] },
-];
 
 function RadarPulse({ style }) {
   const pulse1 = useRef(new Animated.Value(0)).current;
@@ -137,7 +129,7 @@ export default function MapScreen({ navigation }) {
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialRegion={userLocation ? { ...userLocation, latitudeDelta: 0.025, longitudeDelta: 0.025 } : initialRegion}
-        customMapStyle={darkMapStyle}
+        customMapStyle={smokeMapStyle}
         showsUserLocation={radarActive}
       >
         {events.map((event) => {
@@ -189,11 +181,29 @@ export default function MapScreen({ navigation }) {
         <View style={styles.floatingCard}>
           {Platform.OS === 'ios' ? (
             <BlurView intensity={40} tint="dark" style={styles.blurCard}>
-              <EventCard event={selectedEvent} onClose={() => setSelectedEvent(null)} t={t} />
+              <EventCard
+                event={selectedEvent}
+                onClose={() => setSelectedEvent(null)}
+                onOpen={() => {
+                  const id = selectedEvent._id;
+                  setSelectedEvent(null);
+                  navigation.navigate('EventDetail', { eventId: id });
+                }}
+                t={t}
+              />
             </BlurView>
           ) : (
             <View style={styles.androidCard}>
-              <EventCard event={selectedEvent} onClose={() => setSelectedEvent(null)} t={t} />
+              <EventCard
+                event={selectedEvent}
+                onClose={() => setSelectedEvent(null)}
+                onOpen={() => {
+                  const id = selectedEvent._id;
+                  setSelectedEvent(null);
+                  navigation.navigate('EventDetail', { eventId: id });
+                }}
+                t={t}
+              />
             </View>
           )}
         </View>
@@ -202,7 +212,7 @@ export default function MapScreen({ navigation }) {
   );
 }
 
-function EventCard({ event, onClose, t }) {
+function EventCard({ event, onClose, onOpen, t }) {
   return (
     <View style={styles.cardInner}>
       <View style={styles.cardHeader}>
@@ -224,6 +234,12 @@ function EventCard({ event, onClose, t }) {
           {event.capacity?.max - event.capacity?.current} {t.map.seatsAvailable}
         </Text>
       </View>
+      {onOpen ? (
+        <TouchableOpacity style={styles.openBtn} onPress={onOpen}>
+          <Text style={styles.openBtnText}>Ver evento</Text>
+          <Ionicons name="arrow-forward" size={16} color={colors.on_primary} />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -231,8 +247,16 @@ function EventCard({ event, onClose, t }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   header: { paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
-  mapHeader: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg },
-  headerLabel: { ...typography.label_sm, color: colors.outline, letterSpacing: 2, marginBottom: 4 },
+  mapHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+    backgroundColor: 'rgba(250, 249, 247, 0.92)',
+  },
+  headerLabel: { ...typography.label_sm, color: colors.primary, letterSpacing: 2, marginBottom: 4 },
   headerTitle: { ...typography.display_sm, color: colors.on_surface },
   radarActivateContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
   radarContainer: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
@@ -271,8 +295,10 @@ const styles = StyleSheet.create({
   radarStatusFloat: {
     position: 'absolute', top: 120, alignSelf: 'center',
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: 'rgba(31, 32, 32, 0.9)', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(250, 249, 247, 0.95)', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
     borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.outline_variant,
   },
   fallback: { flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
   fallbackTitle: { ...typography.headline_md, color: colors.on_surface, marginBottom: spacing.lg },
@@ -298,7 +324,12 @@ const styles = StyleSheet.create({
   markerLive: { backgroundColor: colors.live, borderColor: colors.live_bg },
   floatingCard: { position: 'absolute', bottom: 100, left: spacing.lg, right: spacing.lg },
   blurCard: { borderRadius: radius.xl, overflow: 'hidden' },
-  androidCard: { backgroundColor: 'rgba(37, 38, 38, 0.95)', borderRadius: radius.xl },
+  androidCard: {
+    backgroundColor: 'rgba(250, 249, 247, 0.98)',
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.outline_variant,
+  },
   cardInner: { padding: spacing.xl, gap: spacing.sm },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardType: { ...typography.label_sm, color: colors.secondary, letterSpacing: 1.5 },
@@ -308,4 +339,15 @@ const styles = StyleSheet.create({
   cardMetaText: { ...typography.label_md, color: colors.secondary },
   cardCapacity: { marginTop: spacing.sm },
   capacityText: { ...typography.body_sm, color: colors.primary },
+  openBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+  },
+  openBtnText: { ...typography.label_md, color: colors.on_primary, fontWeight: '600' },
 });

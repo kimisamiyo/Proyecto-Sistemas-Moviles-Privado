@@ -5,6 +5,7 @@ import { useSquadStore } from '../store/squadStore';
 import SquadCard from './SquadCard';
 import FadeInView from './ui/FadeInView';
 import PressableScale from './ui/PressableScale';
+import { useLayout } from '../utils/responsive';
 
 export default function SquadsStrip({
   title = 'Escuadras disponibles',
@@ -13,9 +14,11 @@ export default function SquadsStrip({
   squads: squadsProp,
   compact,
   onSquadPress,
+  onSquadJoin,
   onSeeAll,
   onCreate,
 }) {
+  const { horizontalPad, hCardWidth } = useLayout();
   const openSquads = useSquadStore((s) => s.openSquads);
   const eventSquads = useSquadStore((s) => s.eventSquads);
   const fetchOpenSquads = useSquadStore((s) => s.fetchOpenSquads);
@@ -34,8 +37,8 @@ export default function SquadsStrip({
 
   return (
     <FadeInView style={styles.wrap}>
-      <View style={styles.head}>
-        <View>
+      <View style={[styles.head, { paddingHorizontal: horizontalPad }]}>
+        <View style={styles.headText}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.sub}>{subtitle}</Text>
         </View>
@@ -55,9 +58,21 @@ export default function SquadsStrip({
       {isLoading && !squads?.length ? (
         <ActivityIndicator color={colors.primary} style={{ padding: spacing.lg }} />
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: horizontalPad }]}
+          decelerationRate="fast"
+          snapToInterval={hCardWidth + spacing.md}
+        >
           {squads.map((s) => (
-            <SquadCard key={s._id} squad={s} onPress={onSquadPress} compact={compact} />
+            <SquadCard
+              key={s._id}
+              squad={s}
+              compact={compact}
+              onPress={onSquadPress}
+              onJoin={onSquadJoin}
+            />
           ))}
         </ScrollView>
       )}
@@ -67,12 +82,24 @@ export default function SquadsStrip({
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.xl },
-  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: spacing.xl, marginBottom: spacing.md },
+  head: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  headText: { flex: 1, minWidth: 0 },
   title: { ...typography.headline_md, color: colors.on_surface },
   sub: { ...typography.body_sm, color: colors.outline, marginTop: 2 },
-  actions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
-  createBtn: { backgroundColor: colors.primary_container, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: 999 },
+  actions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexShrink: 0 },
+  createBtn: {
+    backgroundColor: colors.primary_container,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+  },
   createText: { ...typography.label_md, color: colors.primary, fontWeight: '700' },
   seeAll: { ...typography.label_md, color: colors.secondary },
-  scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.sm },
+  scroll: { paddingBottom: spacing.sm },
 });

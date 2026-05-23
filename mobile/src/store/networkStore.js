@@ -1,12 +1,39 @@
 import { create } from 'zustand';
 import client from '../api/client';
+import { parseApiErrors } from '../utils/validators';
 
 export const useNetworkStore = create((set, get) => ({
   suggestions: [],
   discourseRooms: [],
   connections: [],
   conversations: [],
+  hub: {
+    accepted: [],
+    pendingIncoming: [],
+    pendingOutgoing: [],
+    suggestions: [],
+  },
   isLoading: false,
+
+  fetchNetworkHub: async () => {
+    set({ isLoading: true });
+    try {
+      const { data } = await client.get('/network/hub');
+      set({
+        hub: {
+          accepted: data.accepted || [],
+          pendingIncoming: data.pendingIncoming || [],
+          pendingOutgoing: data.pendingOutgoing || [],
+          suggestions: data.suggestions || [],
+        },
+        isLoading: false,
+      });
+      return data;
+    } catch (e) {
+      set({ isLoading: false });
+      return get().hub;
+    }
+  },
 
   fetchSuggestions: async () => {
     try {
@@ -35,12 +62,39 @@ export const useNetworkStore = create((set, get) => ({
     }
   },
 
+  fetchConnectionStatus: async (userId) => {
+    try {
+      const { data } = await client.get(`/network/status/${userId}`);
+      return data;
+    } catch {
+      return { status: 'none' };
+    }
+  },
+
   sendConnectionRequest: async (recipientId) => {
     try {
       await client.post('/network/connect', { recipientId });
-      get().fetchSuggestions();
+      await get().fetchNetworkHub();
     } catch (error) {
-      throw error.response?.data?.error || 'Failed to connect';
+      throw new Error(parseApiErrors(error));
+    }
+  },
+
+  acceptConnection: async (connectionId) => {
+    try {
+      await client.put(`/network/connect/${connectionId}/accept`);
+      await get().fetchNetworkHub();
+    } catch (error) {
+      throw new Error(parseApiErrors(error));
+    }
+  },
+
+  declineConnection: async (connectionId) => {
+    try {
+      await client.put(`/network/connect/${connectionId}/decline`);
+      await get().fetchNetworkHub();
+    } catch (error) {
+      throw new Error(parseApiErrors(error));
     }
   },
 

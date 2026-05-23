@@ -1,17 +1,30 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../theme/tokens';
 import { useSquadStore } from '../store/squadStore';
-import { getCommunityTheme } from '../theme/communityThemes';
-import PressableScale from '../components/ui/PressableScale';
+import AppButton from '../components/ui/AppButton';
+import AppInput from '../components/ui/AppInput';
 import { parseApiErrors, validateRequired } from '../utils/validators';
 
+const TAGS = [
+  { id: 'general', label: 'General' },
+  { id: 'voluntariado', label: 'Voluntariado' },
+  { id: 'concierto', label: 'Concierto' },
+  { id: 'pokemon_go', label: 'Pokémon GO' },
+];
+
 export default function CreateSquadScreen({ route, navigation }) {
-  const { eventId, eventTitle, communitySlug } = route.params;
+  const { eventId, eventTitle } = route.params;
   const insets = useSafeAreaInsets();
-  const theme = getCommunityTheme(communitySlug);
-  const c = theme.colors;
   const { createSquad } = useSquadStore();
 
   const [name, setName] = useState('');
@@ -39,10 +52,10 @@ export default function CreateSquadScreen({ route, navigation }) {
         plan: plan.trim(),
         maxSize: size,
         activityTag,
-        planNote: planNote.trim(),
+        planNote: planNote.trim() || 'Organizo la escuadra',
         joinPolicy: 'open',
       });
-      Alert.alert('Escuadra creada', 'Comparte el enlace para llenar cupos.');
+      Alert.alert('Escuadra creada', 'Ya puedes invitar desde el detalle de la escuadra.');
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', parseApiErrors(e));
@@ -51,58 +64,105 @@ export default function CreateSquadScreen({ route, navigation }) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: c.surface }]}>
-      <PressableScale onPress={() => navigation.goBack()} style={styles.back}>
-        <Text style={{ color: c.primary }}>← Volver</Text>
-      </PressableScale>
-      <ScrollView contentContainerStyle={styles.form}>
-        <Text style={[styles.label, { color: c.outline }]}>MODO CREADOR · ESCUADRA</Text>
-        <Text style={[styles.title, { color: c.on_surface }]}>Hostear grupo</Text>
-        <Text style={[styles.event, { color: c.secondary }]}>{eventTitle}</Text>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color={colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Nueva escuadra</Text>
+        <View style={styles.backBtn} />
+      </View>
 
-        {['pokemon_go', 'general', 'voluntariado', 'concierto'].map((tag) => (
-          <PressableScale key={tag} onPress={() => setActivityTag(tag)} style={[styles.tag, activityTag === tag && { borderColor: c.primary }]}>
-            <Text style={{ color: activityTag === tag ? c.primary : c.outline }}>{tag}</Text>
-          </PressableScale>
-        ))}
+      <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+        <View style={styles.heroCard}>
+          <Ionicons name="people" size={28} color={colors.primary} />
+          <Text style={styles.heroTitle}>Crear escuadra</Text>
+          <Text style={styles.heroEvent} numberOfLines={2}>
+            {eventTitle}
+          </Text>
+        </View>
 
-        <Field label="Nombre de la escuadra" value={name} onChangeText={setName} color={c} />
-        <Field label="Plan (mismo objetivo para todos)" value={plan} onChangeText={setPlan} color={c} multiline />
-        <Field label="Tu aporte" value={planNote} onChangeText={setPlanNote} color={c} />
-        <Field label="Cupos máximos" value={maxSize} onChangeText={setMaxSize} color={c} keyboardType="number-pad" />
+        <Text style={styles.fieldLabel}>Tipo de actividad</Text>
+        <View style={styles.tags}>
+          {TAGS.map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={[styles.tag, activityTag === t.id && styles.tagOn]}
+              onPress={() => setActivityTag(t.id)}
+            >
+              <Text style={[styles.tagText, activityTag === t.id && styles.tagTextOn]}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        <PressableScale onPress={submit} style={[styles.btn, { backgroundColor: c.primary }]} disabled={loading}>
-          <Text style={[styles.btnText, { color: c.on_primary }]}>{loading ? 'Publicando...' : 'Publicar escuadra'}</Text>
-        </PressableScale>
+        <AppInput icon="flag-outline" placeholder="Nombre de la escuadra" value={name} onChangeText={setName} />
+        <AppInput
+          icon="compass-outline"
+          placeholder="Plan común (mín. 5 caracteres)"
+          value={plan}
+          onChangeText={setPlan}
+          multiline
+          style={{ marginTop: spacing.md, minHeight: 80 }}
+        />
+        <AppInput
+          icon="chatbubble-outline"
+          placeholder="Tu aporte (opcional)"
+          value={planNote}
+          onChangeText={setPlanNote}
+          style={{ marginTop: spacing.md }}
+        />
+        <AppInput
+          icon="people-outline"
+          placeholder="Cupos máximos"
+          value={maxSize}
+          onChangeText={setMaxSize}
+          keyboardType="number-pad"
+          style={{ marginTop: spacing.md }}
+        />
+
+        <AppButton title="Publicar escuadra" onPress={submit} loading={loading} style={{ marginTop: spacing.xxl }} />
       </ScrollView>
     </View>
   );
 }
 
-function Field({ label, color: c, ...props }) {
-  return (
-    <View style={styles.field}>
-      <Text style={[styles.fieldLabel, { color: c.outline }]}>{label}</Text>
-      <TextInput
-        {...props}
-        placeholderTextColor={c.outline}
-        style={[styles.input, { color: c.on_surface, borderColor: c.outline_variant, backgroundColor: c.surface_container_high }]}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  back: { padding: spacing.xl },
+  container: { flex: 1, backgroundColor: colors.background },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outline_variant,
+    backgroundColor: colors.surface,
+  },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  topTitle: { flex: 1, textAlign: 'center', ...typography.headline_md, color: colors.primary },
   form: { padding: spacing.xl, paddingBottom: 80 },
-  label: { ...typography.label_sm },
-  title: { ...typography.display_sm, marginTop: spacing.xs },
-  event: { ...typography.body_md, marginBottom: spacing.lg },
-  tag: { alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: 999, borderWidth: 1, borderColor: '#484848', marginRight: spacing.sm, marginBottom: spacing.sm },
-  field: { marginBottom: spacing.lg },
-  fieldLabel: { ...typography.label_md, marginBottom: spacing.xs },
-  input: { borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, minHeight: 48 },
-  btn: { borderRadius: radius.full, padding: spacing.lg, alignItems: 'center', marginTop: spacing.lg },
-  btnText: { ...typography.label_lg, fontWeight: '700' },
+  heroCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: colors.surface_container_lowest,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.outline_variant,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  heroTitle: { ...typography.headline_md, color: colors.on_surface },
+  heroEvent: { ...typography.body_md, color: colors.on_surface_variant, textAlign: 'center' },
+  fieldLabel: { ...typography.label_md, color: colors.on_surface_variant, marginBottom: spacing.sm },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
+  tag: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface_container_high,
+    borderWidth: 1,
+    borderColor: colors.outline_variant,
+  },
+  tagOn: { backgroundColor: colors.primary_container, borderColor: colors.primary },
+  tagText: { ...typography.label_md, color: colors.outline },
+  tagTextOn: { color: colors.primary, fontWeight: '600' },
 });

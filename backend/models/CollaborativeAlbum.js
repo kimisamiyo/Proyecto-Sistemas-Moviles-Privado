@@ -4,6 +4,14 @@ const PhotoSchema = new mongoose.Schema({
   uploader: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   url: { type: String, required: true },
   caption: { type: String, default: '', maxlength: 300 },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  },
+  reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  reviewedAt: Date,
+  rejectionReason: { type: String, default: '' },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
@@ -16,6 +24,7 @@ const CollaborativeAlbumSchema = new mongoose.Schema({
   photos: [PhotoSchema],
   stats: {
     totalPhotos: { type: Number, default: 0 },
+    pendingPhotos: { type: Number, default: 0 },
     contributors: { type: Number, default: 0 },
   },
 }, { timestamps: true });

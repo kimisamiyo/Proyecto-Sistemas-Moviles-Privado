@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -13,13 +14,15 @@ const communityRoutes = require('./routes/communities');
 const eventusRoutes = require('./routes/eventus');
 const squadRoutes = require('./routes/squads');
 const notificationRoutes = require('./routes/notifications');
+const uploadRoutes = require('./routes/uploads');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -37,6 +40,7 @@ app.use('/api/v1/communities', communityRoutes);
 app.use('/api/v1/eventus', eventusRoutes);
 app.use('/api/v1/squads', squadRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/uploads', uploadRoutes);
 
 app.get('/', (req, res) => {
   res.json({

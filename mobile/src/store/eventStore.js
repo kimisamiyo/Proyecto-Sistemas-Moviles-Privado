@@ -1,13 +1,18 @@
 import { create } from 'zustand';
 import client from '../api/client';
+import { parseApiErrors } from '../utils/validators';
 
 export const useEventStore = create((set, get) => ({
   events: [],
   liveEvents: [],
+  openSquads: [],
+  pastAttendedEvents: [],
   communities: [],
   currentEvent: null,
   currentCommunity: null,
   eventSquads: [],
+  myEventSquad: null,
+  attendeeSquads: {},
   isLoading: false,
   error: null,
   pagination: null,
@@ -33,6 +38,17 @@ export const useEventStore = create((set, get) => ({
     }
   },
 
+  fetchPastAttended: async () => {
+    try {
+      const { data } = await client.get('/events/attended/past');
+      set({ pastAttendedEvents: data.events || [] });
+      return data.events;
+    } catch {
+      set({ pastAttendedEvents: [] });
+      return [];
+    }
+  },
+
   fetchAllEvents: async () => {
     set({ isLoading: true });
     try {
@@ -51,6 +67,8 @@ export const useEventStore = create((set, get) => ({
         currentEvent: data.event,
         currentCommunity: data.community,
         eventSquads: data.squads || [],
+        myEventSquad: data.mySquad || null,
+        attendeeSquads: data.attendeeSquads || {},
         isLoading: false,
       });
       return data.event;
@@ -63,17 +81,22 @@ export const useEventStore = create((set, get) => ({
     try {
       const { data } = await client.post(`/events/register/${eventId}`);
       const event = get().currentEvent;
-      if (event && event._id === eventId) {
+      if (event && String(event._id) === String(eventId) && !data.alreadyRegistered) {
+        const attendees = [...(event.attendees || [])];
         set({
           currentEvent: {
             ...event,
-            capacity: { ...event.capacity, current: event.capacity.current + 1 },
+            attendees,
+            capacity: {
+              ...event.capacity,
+              current: (event.capacity?.current || 0) + 1,
+            },
           },
         });
       }
       return data;
     } catch (error) {
-      throw error.response?.data?.error || 'Registration failed';
+      throw parseApiErrors(error);
     }
   },
 
@@ -91,5 +114,12 @@ export const useEventStore = create((set, get) => ({
 
   setCommunityFilter: (slug) => set({ communityFilter: slug }),
 
-  clearCurrentEvent: () => set({ currentEvent: null, currentCommunity: null }),
+  clearCurrentEvent: () =>
+    set({
+      currentEvent: null,
+      currentCommunity: null,
+      eventSquads: [],
+      myEventSquad: null,
+      attendeeSquads: {},
+    }),
 }));
