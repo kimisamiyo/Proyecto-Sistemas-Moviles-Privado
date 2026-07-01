@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "EventUs",
-    "slug": "eventus",
+    "slug": "event-us",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,14 +13,21 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "pe.edu.urp.eventus",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "pe.edu.urp.eventus",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,15 +39,13 @@
         {
           "photosPermission": "EventUs usa tu galería para portadas de eventos y recuerdos."
         }
-      ],
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "event-us",
-          "organization": "universidad-ricardo-palma-9g"
-        }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5227c224-1042-452e-ac88-c6c538989b82"
+      }
+    },
+    "owner": "jesusrazos-team"
   }
 }
