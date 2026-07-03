@@ -84,7 +84,7 @@ const sendConnectionRequest = async (req, res) => {
     const { createNotification } = require('../services/notificationService');
     createNotification(
       recipientId,
-      'welcome',
+      'connection_request',
       'Nueva solicitud de conexión',
       `${req.user.profile?.firstName || 'Alguien'} quiere conectar contigo`,
       { connectionId: connection._id, requesterId: req.user._id }

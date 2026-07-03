@@ -19,6 +19,7 @@ import { useNetworkStore } from '../store/networkStore';
 import { useAuthStore } from '../store/authStore';
 import client from '../api/client';
 import { parseApiErrors } from '../utils/validators';
+import { openChat as navigateToChat } from '../utils/navigationHelpers';
 
 export default function PublicProfileScreen({ route, navigation }) {
   const userId = route.params?.userId;
@@ -78,14 +79,14 @@ export default function PublicProfileScreen({ route, navigation }) {
     }
   };
 
-  const openChat = () => {
-    navigation.navigate('Chat', { userId, user: profile });
+  const handleOpenChat = () => {
+    navigateToChat(navigation, userId, profile);
   };
 
   const renderConnectionCta = () => {
     if (isSelf || !userId) return null;
     if (connStatus === 'connected') {
-      return <AppButton title="Enviar mensaje" onPress={openChat} style={{ marginTop: spacing.xl }} />;
+      return <AppButton title="Enviar mensaje" onPress={handleOpenChat} style={{ marginTop: spacing.xl }} />;
     }
     if (connStatus === 'pending_incoming') {
       return (

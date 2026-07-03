@@ -26,6 +26,25 @@ import resolveMediaUrl from "../utils/resolveMediaUrl";
 
 const STEPS = ["Iniciativa", "Cuándo y dónde", "Publicar"];
 
+// Próximos 30 días seleccionables para programar la iniciativa
+const buildDateOptions = () => {
+  const options = [];
+  for (let i = 1; i <= 30; i += 1) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    d.setHours(12, 0, 0, 0);
+    options.push(d);
+  }
+  return options;
+};
+
+const DATE_OPTIONS = buildDateOptions();
+
+const sameDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
 export default function CreateEventScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { createEvent, isLoading } = useEventusStore();
@@ -36,6 +55,7 @@ export default function CreateEventScreen({ navigation }) {
   const [impactStatement, setImpactStatement] = useState("");
   const [communitySlug, setCommunitySlug] = useState("voluntariado");
   const [venue, setVenue] = useState("");
+  const [eventDate, setEventDate] = useState(DATE_OPTIONS[6]);
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("12:00");
   const [maxCapacity, setMaxCapacity] = useState("50");
@@ -131,9 +151,6 @@ export default function CreateEventScreen({ navigation }) {
       Alert.alert("Cupos", "Mínimo 2 personas.");
       return;
     }
-    const eventDate = new Date();
-    eventDate.setDate(eventDate.getDate() + 7);
-
     try {
       const { event } = await createEvent({
         title: title.trim(),
@@ -257,6 +274,34 @@ export default function CreateEventScreen({ navigation }) {
               value={venue}
               onChangeText={setVenue}
             />
+            <Text style={styles.fieldLabel}>Fecha del evento</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.dateStrip}
+            >
+              {DATE_OPTIONS.map((d) => {
+                const selected = sameDay(d, eventDate);
+                return (
+                  <TouchableOpacity
+                    key={d.toISOString()}
+                    style={[styles.dateChip, selected && styles.dateChipOn]}
+                    onPress={() => setEventDate(d)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.dateChipDay, selected && styles.dateChipTextOn]}>
+                      {d.toLocaleDateString("es-PE", { weekday: "short" }).toUpperCase()}
+                    </Text>
+                    <Text style={[styles.dateChipNum, selected && styles.dateChipTextOn]}>
+                      {d.getDate()}
+                    </Text>
+                    <Text style={[styles.dateChipMonth, selected && styles.dateChipTextOn]}>
+                      {d.toLocaleDateString("es-PE", { month: "short" })}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
             <AppInput
               icon="time-outline"
               placeholder="Inicio (HH:MM)"
@@ -271,10 +316,6 @@ export default function CreateEventScreen({ navigation }) {
               onChangeText={setEndTime}
               style={{ marginTop: spacing.md }}
             />
-            <Text style={styles.hint}>
-              La fecha se programa para la próxima semana. Podrás editarla
-              después.
-            </Text>
             <LocationMapPicker
               coordinates={coordinates}
               onChange={(coords) => {
@@ -312,6 +353,14 @@ export default function CreateEventScreen({ navigation }) {
               <Text style={styles.summaryTitle}>{title}</Text>
               <Text style={styles.summaryMeta}>
                 {venue || "Lugar por definir"} · {communitySlug}
+              </Text>
+              <Text style={styles.summaryMeta}>
+                {eventDate.toLocaleDateString("es-PE", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}{" "}
+                · {startTime} — {endTime}
               </Text>
             </View>
           </>
@@ -383,6 +432,21 @@ const styles = StyleSheet.create({
   chipText: { ...typography.label_md, color: colors.outline },
   chipTextOn: { color: colors.primary },
   hint: { ...typography.body_sm, color: colors.outline, marginTop: spacing.lg },
+  dateStrip: { flexDirection: "row", marginBottom: spacing.sm },
+  dateChip: {
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface_container_high,
+    marginRight: spacing.sm,
+    minWidth: 58,
+  },
+  dateChipOn: { backgroundColor: colors.primary },
+  dateChipDay: { ...typography.label_sm, color: colors.outline },
+  dateChipNum: { ...typography.headline_md, color: colors.on_surface },
+  dateChipMonth: { ...typography.label_sm, color: colors.outline, textTransform: "capitalize" },
+  dateChipTextOn: { color: colors.on_primary },
   summary: {
     marginTop: spacing.xl,
     padding: spacing.lg,

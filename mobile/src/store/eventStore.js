@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import client from '../api/client';
 import { parseApiErrors } from '../utils/validators';
+import { useAuthStore } from './authStore';
 
 export const useEventStore = create((set, get) => ({
   events: [],
@@ -81,16 +82,26 @@ export const useEventStore = create((set, get) => ({
     try {
       const { data } = await client.post(`/events/register/${eventId}`);
       const event = get().currentEvent;
-      if (event && String(event._id) === String(eventId) && !data.alreadyRegistered) {
+      const user = useAuthStore.getState().user;
+      if (event && String(event._id) === String(eventId) && user) {
         const attendees = [...(event.attendees || [])];
+        const uid = String(user._id);
+        if (!attendees.some((a) => String(a._id || a) === uid)) {
+          attendees.push({
+            _id: user._id,
+            profile: user.profile,
+          });
+        }
         set({
           currentEvent: {
             ...event,
             attendees,
-            capacity: {
-              ...event.capacity,
-              current: (event.capacity?.current || 0) + 1,
-            },
+            capacity: data.alreadyRegistered
+              ? event.capacity
+              : {
+                  ...event.capacity,
+                  current: (event.capacity?.current || 0) + 1,
+                },
           },
         });
       }

@@ -221,25 +221,27 @@ const COMMUNITY_THEMES = [
   },
 ];
 
+// criteria: evaluada por services/badgeService.js contra user.metrics.
+// Las insignias sin criteria (custom) se otorgan por acciones puntuales.
 const BADGE_CATALOG = [
-  { slug: 'primera_brigada', name: 'Primera brigada', description: 'Tu primer voluntariado confirmado', icon: 'ribbon-outline', tier: 'bronze', points: 10 },
-  { slug: 'voluntario_constante', name: 'Voluntario constante', description: '5 eventos de impacto social', icon: 'repeat-outline', tier: 'silver', points: 50 },
-  { slug: 'lider_campo', name: 'Líder de campo', description: 'Organizaste 3 iniciativas con +20 asistentes', icon: 'flag-outline', tier: 'gold', points: 120 },
-  { slug: 'donante_oro', name: 'Donante oro', description: 'Apoyaste 3 causas benéficas', icon: 'heart-outline', tier: 'gold', points: 80 },
-  { slug: 'embajador_causa', name: 'Embajador de causa', description: 'Invitaste a 5 personas vía enlace', icon: 'share-social-outline', tier: 'silver', points: 40 },
-  { slug: 'meta_superada', name: 'Meta superada', description: 'Evento benéfico alcanzó el 100% de cupo', icon: 'trophy-outline', tier: 'platinum', points: 150 },
-  { slug: 'anfitrion_quedada', name: 'Anfitrión de quedada', description: 'Publicaste tu primera quedada', icon: 'home-outline', tier: 'bronze', points: 15 },
-  { slug: 'conector_social', name: 'Conector social', description: 'Formaste 3 grupos por matchmaking', icon: 'git-network-outline', tier: 'silver', points: 45 },
-  { slug: 'grupo_fiel', name: 'Grupo fiel', description: 'Mismo grupo asistió a 4 eventos', icon: 'people-circle-outline', tier: 'gold', points: 90 },
-  { slug: 'facilitador', name: 'Facilitador', description: 'Moderaste un muro de evento activo', icon: 'chatbubbles-outline', tier: 'silver', points: 35 },
-  { slug: 'voz_vecinal', name: 'Voz vecinal', description: '10 aportes en muros de comunidad', icon: 'megaphone-outline', tier: 'gold', points: 70 },
-  { slug: 'superfan', name: 'Superfan', description: 'Asististe a 3 conciertos en un mes', icon: 'star-outline', tier: 'silver', points: 55 },
-  { slug: 'guardian_verde', name: 'Guardián verde', description: '3 acciones ambientales completadas', icon: 'leaf-outline', tier: 'gold', points: 85 },
-  { slug: 'radar_activo', name: 'Radar activo', description: 'Descubriste 10 eventos con geolocalización', icon: 'locate-outline', tier: 'bronze', points: 20 },
-  { slug: 'entrada_verificada', name: 'Entrada verificada', description: 'Check-in con QR dinámico sin fraude', icon: 'shield-checkmark-outline', tier: 'silver', points: 25 },
-  { slug: 'creador_impacto', name: 'Creador de impacto', description: 'Publicaste 5 iniciativas en modo creador', icon: 'create-outline', tier: 'platinum', points: 200 },
-  { slug: 'album_colaborador', name: 'Álbum colaborador', description: 'Subiste fotos a 3 álbumes post-evento', icon: 'images-outline', tier: 'silver', points: 30 },
-  { slug: 'organizador_metricas', name: 'Organizador data-driven', description: 'Consultaste panel de métricas 10 veces', icon: 'stats-chart-outline', tier: 'gold', points: 60 },
+  { slug: 'primera_brigada', name: 'Primera brigada', description: 'Tu primer voluntariado confirmado', icon: 'ribbon-outline', tier: 'bronze', points: 10, criteria: { type: 'events_attended', threshold: 1 } },
+  { slug: 'voluntario_constante', name: 'Voluntario constante', description: '5 eventos de impacto social', icon: 'repeat-outline', tier: 'silver', points: 50, criteria: { type: 'events_attended', threshold: 5 } },
+  { slug: 'lider_campo', name: 'Líder de campo', description: 'Organizaste 3 iniciativas con +20 asistentes', icon: 'flag-outline', tier: 'gold', points: 120, criteria: { type: 'events_created', threshold: 3 } },
+  { slug: 'donante_oro', name: 'Donante oro', description: 'Apoyaste 3 causas benéficas', icon: 'heart-outline', tier: 'gold', points: 80, criteria: { type: 'custom', threshold: 3 } },
+  { slug: 'embajador_causa', name: 'Embajador de causa', description: 'Invitaste a 5 personas vía enlace', icon: 'share-social-outline', tier: 'silver', points: 40, criteria: { type: 'invites', threshold: 5 } },
+  { slug: 'meta_superada', name: 'Meta superada', description: 'Evento benéfico alcanzó el 100% de cupo', icon: 'trophy-outline', tier: 'platinum', points: 150, criteria: { type: 'custom', threshold: 1 } },
+  { slug: 'anfitrion_quedada', name: 'Anfitrión de quedada', description: 'Publicaste tu primera quedada', icon: 'home-outline', tier: 'bronze', points: 15, criteria: { type: 'custom', threshold: 1 } },
+  { slug: 'conector_social', name: 'Conector social', description: 'Formaste 3 grupos por matchmaking', icon: 'git-network-outline', tier: 'silver', points: 45, criteria: { type: 'custom', threshold: 3 } },
+  { slug: 'grupo_fiel', name: 'Grupo fiel', description: 'Mismo grupo asistió a 4 eventos', icon: 'people-circle-outline', tier: 'gold', points: 90, criteria: { type: 'custom', threshold: 4 } },
+  { slug: 'facilitador', name: 'Facilitador', description: 'Moderaste un muro de evento activo', icon: 'chatbubbles-outline', tier: 'silver', points: 35, criteria: { type: 'custom', threshold: 1 } },
+  { slug: 'voz_vecinal', name: 'Voz vecinal', description: '10 aportes en muros de comunidad', icon: 'megaphone-outline', tier: 'gold', points: 70, criteria: { type: 'wall_posts', threshold: 10 } },
+  { slug: 'superfan', name: 'Superfan', description: 'Asististe a 3 conciertos en un mes', icon: 'star-outline', tier: 'silver', points: 55, criteria: { type: 'custom', threshold: 3 } },
+  { slug: 'guardian_verde', name: 'Guardián verde', description: '3 acciones ambientales completadas', icon: 'leaf-outline', tier: 'gold', points: 85, criteria: { type: 'custom', threshold: 3 } },
+  { slug: 'radar_activo', name: 'Radar activo', description: 'Descubriste 10 eventos con geolocalización', icon: 'locate-outline', tier: 'bronze', points: 20, criteria: { type: 'custom', threshold: 10 } },
+  { slug: 'entrada_verificada', name: 'Entrada verificada', description: 'Check-in con QR dinámico sin fraude', icon: 'shield-checkmark-outline', tier: 'silver', points: 25, criteria: { type: 'check_ins', threshold: 1 } },
+  { slug: 'creador_impacto', name: 'Creador de impacto', description: 'Publicaste 5 iniciativas en modo creador', icon: 'create-outline', tier: 'platinum', points: 200, criteria: { type: 'events_created', threshold: 5 } },
+  { slug: 'album_colaborador', name: 'Álbum colaborador', description: 'Subiste fotos a 3 álbumes post-evento', icon: 'images-outline', tier: 'silver', points: 30, criteria: { type: 'custom', threshold: 3 } },
+  { slug: 'organizador_metricas', name: 'Organizador data-driven', description: 'Consultaste panel de métricas 10 veces', icon: 'stats-chart-outline', tier: 'gold', points: 60, criteria: { type: 'custom', threshold: 10 } },
 ];
 
 module.exports = { COMMUNITY_THEMES, BADGE_CATALOG };

@@ -125,7 +125,7 @@ const createSquad = async (req, res) => {
       'squad_invite',
       'Escuadra creada',
       `"${squad.name}" — comparte para llenar ${maxSize - 1} cupos más.`,
-      { squadId: squad._id }
+      { squadId: squad._id, eventId: squad.event?._id || squad.event }
     );
 
     res.status(201).json({ squad: formatSquad(populated), message: 'Escuadra creada. ¡Invita a tu squad!' });
@@ -221,7 +221,7 @@ const joinSquad = async (req, res) => {
         'squad_full',
         '¡Falta 1 persona!',
         `Tu escuadra "${squad.name}" está a un paso de completarse.`,
-        { squadId: squad._id }
+        { squadId: squad._id, eventId: squad.event?._id || squad.event }
       );
     }
 
@@ -282,6 +282,7 @@ const approveMember = async (req, res) => {
 
     await createNotification(member.user, 'squad_join', 'Solicitud aprobada', `Fuiste aceptado en "${squad.name}".`, {
       squadId: squad._id,
+      eventId: squad.event?._id || squad.event,
     });
 
     res.json({ squad: formatSquad(squad), message: 'Miembro aprobado.' });

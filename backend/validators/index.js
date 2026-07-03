@@ -1,14 +1,18 @@
 const { body, param, query } = require('express-validator');
 
+// gmail_remove_dots: false — sin esto, "nombre.apellido@gmail.com" se
+// normaliza a "nombreapellido@gmail.com" y el login nunca encuentra al usuario.
+const emailNormalization = { gmail_remove_dots: false };
+
 const registerRules = [
-  body('email').isEmail().normalizeEmail().withMessage('Correo inválido'),
+  body('email').isEmail().normalizeEmail(emailNormalization).withMessage('Correo inválido'),
   body('password').isLength({ min: 6 }).withMessage('Mínimo 6 caracteres'),
   body('firstName').trim().notEmpty().isLength({ max: 50 }).withMessage('Nombre requerido'),
   body('lastName').trim().notEmpty().isLength({ max: 50 }).withMessage('Apellido requerido'),
 ];
 
 const loginRules = [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail().normalizeEmail(emailNormalization),
   body('password').notEmpty(),
 ];
 

@@ -25,13 +25,23 @@ export default function ChatScreen({ route, navigation }) {
   const [connLoading, setConnLoading] = useState(true);
   const flatListRef = useRef(null);
 
+  const canChatRef = useRef(false);
+
   useEffect(() => {
     (async () => {
       const st = await fetchConnectionStatus(userId);
-      setCanChat(st?.status === 'connected');
+      const connected = st?.status === 'connected';
+      setCanChat(connected);
+      canChatRef.current = connected;
       setConnLoading(false);
-      if (st?.status === 'connected') fetchMessages();
+      if (connected) fetchMessages();
     })();
+
+    // Cuasi tiempo real: sincroniza mensajes nuevos cada 6s mientras el chat está abierto
+    const interval = setInterval(() => {
+      if (canChatRef.current) fetchMessages();
+    }, 6000);
+    return () => clearInterval(interval);
   }, [userId]);
 
   const fetchMessages = async () => {

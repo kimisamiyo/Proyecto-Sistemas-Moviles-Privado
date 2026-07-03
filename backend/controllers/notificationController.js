@@ -1,10 +1,30 @@
 const Notification = require('../models/Notification');
 
+const normalizeData = (data) => {
+  if (!data || typeof data !== 'object') return {};
+  const out = {};
+  for (const [key, val] of Object.entries(data)) {
+    if (val && (val._bsontype === 'ObjectId' || val.buffer)) {
+      out[key] = String(val);
+    } else if (val && typeof val === 'object' && val._id && !Array.isArray(val)) {
+      out[key] = String(val._id);
+    } else {
+      out[key] = val;
+    }
+  }
+  return out;
+};
+
 const listNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ user: req.user._id })
+    const rows = await Notification.find({ user: req.user._id })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(50)
+      .lean();
+    const notifications = rows.map((n) => ({
+      ...n,
+      data: normalizeData(n.data),
+    }));
     const unread = await Notification.countDocuments({ user: req.user._id, read: false });
     res.json({ notifications, unread });
   } catch (error) {

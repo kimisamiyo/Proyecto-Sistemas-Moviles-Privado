@@ -5,6 +5,7 @@ const CommunityType = require('../models/CommunityType');
 const { generateQRToken } = require('../utils/qrGenerator');
 const { sendEventRegistration } = require('../services/emailService');
 const { createNotification } = require('../services/notificationService');
+const { evaluateBadgesForUser } = require('../services/badgeService');
 const { formatSquad } = require('./squadController');
 const Squad = require('../models/Squad');
 const { buildTicketView } = require('../utils/ticketPayload');
@@ -251,6 +252,7 @@ const registerForEvent = async (req, res) => {
       event.metadata.title,
       { eventId }
     ).catch(() => {});
+    evaluateBadgesForUser(userId, { eventId }).catch(() => {});
 
     res.json({
       message: 'Inscripción confirmada. Tu QR dinámico está activo.',

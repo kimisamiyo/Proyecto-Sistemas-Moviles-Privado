@@ -2,6 +2,7 @@
   "expo": {
     "name": "EventUs",
     "slug": "event-us",
+    "scheme": "eventus",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -26,7 +27,9 @@
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -38,6 +41,18 @@
         "expo-image-picker",
         {
           "photosPermission": "EventUs usa tu galería para portadas de eventos y recuerdos."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "EventUs usa la cámara para validar entradas con QR dinámico."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "EventUs usa tu ubicación para mostrarte eventos y personas cerca de ti en el radar."
         }
       ]
     ],

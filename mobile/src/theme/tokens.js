@@ -57,84 +57,94 @@ export const colors = {
   live_bg: 'rgba(46, 125, 50, 0.12)',
 };
 
+// Familias Manrope cargadas en App.js. En Android fontWeight no aplica sobre
+// fuentes personalizadas, por eso cada peso usa su propia familia.
+export const fonts = {
+  regular: 'Manrope',
+  medium: 'Manrope-Medium',
+  semibold: 'Manrope-SemiBold',
+  bold: 'Manrope-Bold',
+  extrabold: 'Manrope-ExtraBold',
+};
+
 export const typography = {
-  fontFamily: 'Manrope',
+  fontFamily: fonts.regular,
 
   display_lg: {
+    fontFamily: fonts.extrabold,
     fontSize: 36,
-    fontWeight: '800',
     letterSpacing: -0.72,
     lineHeight: 44,
   },
   display_md: {
+    fontFamily: fonts.bold,
     fontSize: 28,
-    fontWeight: '700',
     letterSpacing: -0.56,
     lineHeight: 36,
   },
   display_sm: {
+    fontFamily: fonts.bold,
     fontSize: 24,
-    fontWeight: '700',
     letterSpacing: -0.48,
     lineHeight: 32,
   },
   headline_lg: {
+    fontFamily: fonts.bold,
     fontSize: 22,
-    fontWeight: '700',
     letterSpacing: -0.22,
     lineHeight: 28,
   },
   headline_md: {
+    fontFamily: fonts.semibold,
     fontSize: 18,
-    fontWeight: '600',
     letterSpacing: -0.18,
     lineHeight: 24,
   },
   title_lg: {
+    fontFamily: fonts.semibold,
     fontSize: 16,
-    fontWeight: '600',
     letterSpacing: 0,
     lineHeight: 22,
   },
   title_md: {
+    fontFamily: fonts.semibold,
     fontSize: 14,
-    fontWeight: '600',
     letterSpacing: 0.1,
     lineHeight: 20,
   },
   body_lg: {
+    fontFamily: fonts.regular,
     fontSize: 16,
-    fontWeight: '400',
     letterSpacing: 0.15,
     lineHeight: 24,
   },
   body_md: {
+    fontFamily: fonts.regular,
     fontSize: 14,
-    fontWeight: '400',
     letterSpacing: 0.25,
     lineHeight: 20,
   },
   body_sm: {
+    fontFamily: fonts.regular,
     fontSize: 12,
-    fontWeight: '400',
     letterSpacing: 0.4,
     lineHeight: 16,
   },
   label_lg: {
+    fontFamily: fonts.medium,
     fontSize: 14,
-    fontWeight: '500',
     letterSpacing: 0.1,
     lineHeight: 20,
   },
   label_md: {
+    fontFamily: fonts.medium,
     fontSize: 12,
-    fontWeight: '500',
     letterSpacing: 0.5,
     lineHeight: 16,
   },
   label_sm: {
+    fontFamily: fonts.medium,
     fontSize: 11,
-    fontWeight: '500',
     letterSpacing: 0.8,
     lineHeight: 14,
     textTransform: 'uppercase',

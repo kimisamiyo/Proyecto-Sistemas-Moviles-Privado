@@ -174,6 +174,34 @@ export const useEventusStore = create((set, get) => ({
     }
   },
 
+  reactToPost: async (eventId, postId, emoji = '❤️') => {
+    try {
+      const { data } = await client.post(`/eventus/events/${eventId}/wall/${postId}/react`, { emoji });
+      set({ wall: data.wall, error: null });
+      return data;
+    } catch (e) {
+      set({ error: parseApiErrors(e) });
+      throw e;
+    }
+  },
+
+  checkInTicket: async (eventId, token) => {
+    const { data } = await client.post(`/eventus/events/${eventId}/checkin`, { token });
+    return data;
+  },
+
+  creatorDashboard: null,
+  fetchCreatorDashboard: async () => {
+    try {
+      const { data } = await client.get('/eventus/creator/dashboard');
+      set({ creatorDashboard: data, error: null });
+      return data;
+    } catch (e) {
+      set({ creatorDashboard: null, error: parseApiErrors(e) });
+      return null;
+    }
+  },
+
   fetchMetrics: async (eventId) => {
     set({ metricsForbidden: false, error: null });
     try {

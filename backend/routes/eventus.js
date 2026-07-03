@@ -7,23 +7,28 @@ const {
   createEvent,
   getEventWall,
   postToWall,
+  reactToWallPost,
   getMatchGroups,
   joinMatchmaking,
   getEventMetrics,
+  getCreatorDashboard,
   getAlbum,
   addAlbumPhoto,
   reviewAlbumPhoto,
   getMyTicket,
   refreshTicketQR,
+  checkInTicket,
   getWhatsAppInvite,
   getUserBadgeWall,
 } = require('../controllers/eventusController');
 
 router.post('/events', auth, createEventRules, validate, createEvent);
 router.get('/badges/wall/:userId?', auth, getUserBadgeWall);
+router.get('/creator/dashboard', auth, getCreatorDashboard);
 
 router.get('/events/:eventId/wall', auth, getEventWall);
 router.post('/events/:eventId/wall', auth, wallPostRules, validate, postToWall);
+router.post('/events/:eventId/wall/:postId/react', auth, reactToWallPost);
 router.get('/events/:eventId/groups', auth, getMatchGroups);
 router.post('/events/:eventId/groups/join', auth, joinMatchmaking);
 router.get('/events/:eventId/metrics', auth, getEventMetrics);
@@ -32,6 +37,7 @@ router.post('/events/:eventId/album', auth, addAlbumPhoto);
 router.patch('/events/:eventId/album/photos/:photoId', auth, reviewAlbumPhoto);
 router.get('/events/:eventId/ticket', auth, getMyTicket);
 router.post('/events/:eventId/ticket/refresh', auth, refreshTicketQR);
+router.post('/events/:eventId/checkin', auth, checkInTicket);
 router.get('/events/:eventId/invite/whatsapp', auth, getWhatsAppInvite);
 
 module.exports = router;

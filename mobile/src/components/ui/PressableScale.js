@@ -19,7 +19,7 @@ export default function PressableScale({ children, onPress, style, disabled }) {
       onPressIn={pressIn}
       onPressOut={pressOut}
       onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onPress?.();
       }}
     >

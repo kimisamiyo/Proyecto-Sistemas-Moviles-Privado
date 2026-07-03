@@ -19,6 +19,24 @@ const { pickAvatar, pickCover, pickAlbumPhoto, pickBadge, coverForSlug } = requi
 
 const lima = (lng, lat) => ({ type: 'Point', coordinates: [lng, lat] });
 
+// Fechas relativas a hoy para que el seed siempre genere eventos vigentes
+const daysFromNow = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(12, 0, 0, 0);
+  return d;
+};
+const hhmm = (date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+// Ventana horaria que cubre el momento actual (para eventos "en vivo")
+const liveWindow = (hoursBefore = 1, hoursAfter = 4) => {
+  const now = new Date();
+  const start = new Date(now.getTime() - hoursBefore * 3600000);
+  const end = new Date(now.getTime() + hoursAfter * 3600000);
+  const date = new Date(now);
+  date.setHours(0, 0, 0, 0);
+  return { date, startTime: hhmm(start), endTime: hhmm(end) };
+};
+
 const seedData = async ({ exitOnComplete = true } = {}) => {
   try {
     if (mongoose.connection.readyState === 0) {
@@ -184,7 +202,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
           impactStatement: 'Meta: 200 árboles nativos y 2 km de costa limpia.',
         },
         impact: { category: 'ambiental', goal: '200 árboles', beneficiaries: 'Comunidad costera' },
-        schedule: { date: new Date('2026-05-25'), startTime: '08:00', endTime: '13:00' },
+        schedule: { date: daysFromNow(3), startTime: '08:00', endTime: '13:00' },
         location: { venue: 'Costa Verde — Chorrillos', address: 'Malecón, Chorrillos', coordinates: lima(-77.02, -12.18) },
         capacity: { max: 80, current: 34 },
         hosts: [{ userId: users[0]._id, role: 'Organizador' }],
@@ -204,7 +222,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
           impactStatement: 'Recaudar insumos para 50 familias del barrio.',
         },
         impact: { category: 'social', goal: 'S/ 8,000 en insumos', beneficiaries: '50 familias' },
-        schedule: { date: new Date('2026-06-02'), startTime: '16:00', endTime: '22:00' },
+        schedule: { date: daysFromNow(6), startTime: '16:00', endTime: '22:00' },
         location: { venue: 'Plaza Bolognesi', address: 'Miraflores, Lima', coordinates: lima(-77.03, -12.12) },
         capacity: { max: 300, current: 112 },
         hosts: [{ userId: users[0]._id, role: 'Organizador' }],
@@ -220,7 +238,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
           communitySlug: 'quedada',
           tags: ['juegos', 'café', 'nuevos amigos'],
         },
-        schedule: { date: new Date('2026-05-22'), startTime: '19:00', endTime: '23:00' },
+        schedule: liveWindow(1, 4),
         location: { venue: 'Café Literario Barranco', address: 'Barranco, Lima', coordinates: lima(-77.02, -12.15) },
         capacity: { max: 24, current: 18 },
         hosts: [{ userId: users[1]._id, role: 'Organizador' }],
@@ -238,7 +256,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
           communitySlug: 'reunion',
           tags: ['cívico', 'vecinos', 'seguridad'],
         },
-        schedule: { date: new Date('2026-06-08'), startTime: '18:30', endTime: '20:30' },
+        schedule: { date: daysFromNow(9), startTime: '18:30', endTime: '20:30' },
         location: { venue: 'CCVV Los Jazmines', address: 'Surco, Lima', coordinates: lima(-76.99, -12.11) },
         capacity: { max: 60, current: 22 },
         createdBy: users[0]._id,
@@ -252,7 +270,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
           communitySlug: 'concierto',
           tags: ['música', 'local', 'nocturno'],
         },
-        schedule: { date: new Date('2026-06-15'), startTime: '20:00', endTime: '02:00' },
+        schedule: liveWindow(1, 5),
         location: { venue: 'Parque Kennedy', address: 'Miraflores, Lima', coordinates: lima(-77.03, -12.12) },
         capacity: { max: 500, current: 287 },
         isLive: true,
@@ -269,7 +287,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
           communitySlug: 'deporte',
           tags: ['fútbol', 'gratis', 'salud'],
         },
-        schedule: { date: new Date('2026-05-28'), startTime: '17:00', endTime: '19:00' },
+        schedule: { date: daysFromNow(2), startTime: '17:00', endTime: '19:00' },
         location: { venue: 'Cancha Sintética UNMSM Norte', address: 'Los Olivos', coordinates: lima(-77.07, -11.99) },
         capacity: { max: 22, current: 16 },
         createdBy: users[1]._id,
@@ -282,7 +300,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
           communitySlug: 'cultura',
           tags: ['arte', 'mural', 'taller'],
         },
-        schedule: { date: new Date('2026-06-20'), startTime: '10:00', endTime: '14:00' },
+        schedule: { date: daysFromNow(12), startTime: '10:00', endTime: '14:00' },
         location: { venue: 'Pasaje Santa Rosa', address: 'Barranco', coordinates: lima(-77.02, -12.15) },
         capacity: { max: 30, current: 14 },
         createdBy: users[0]._id,
@@ -297,7 +315,7 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
           impactStatement: 'Retirar 500 kg de residuos no reciclables.',
         },
         impact: { category: 'ambiental', goal: '500 kg residuos', volunteerHours: 120 },
-        schedule: { date: new Date('2026-07-05'), startTime: '07:30', endTime: '12:00' },
+        schedule: { date: daysFromNow(5), startTime: '07:30', endTime: '12:00' },
         location: { venue: 'Malecón Magdalena', address: 'Magdalena del Mar', coordinates: lima(-77.07, -12.09) },
         capacity: { max: 100, current: 41 },
         isFeatured: true,
@@ -517,13 +535,15 @@ const seedData = async ({ exitOnComplete = true } = {}) => {
         type: 'squad_invite',
         title: 'Te invitaron a una escuadra',
         body: '¿Te unes a la quedada de board games?',
+        data: { squadId: squads[1]._id, eventId: events[2]._id },
         read: false,
       },
       {
         user: users[0]._id,
         type: 'badge_earned',
-        title: 'Nueva inscripción',
-        body: 'Un miembro URP se unió a tu brigada',
+        title: '¡Nueva insignia desbloqueada!',
+        body: 'Primera brigada — Tu primer voluntariado confirmado',
+        data: { badgeSlug: 'primera_brigada', eventId: events[0]._id },
         read: true,
       },
     ]);

@@ -33,13 +33,12 @@ import AvatarImage from '../components/ui/AvatarImage';
 import EventAttendeesRow from '../components/event/EventAttendeesRow';
 import { getEventCover } from '../utils/images';
 import { useLayout } from '../utils/responsive';
-import { openProfileTab } from '../utils/navigationHelpers';
+import { getEventPhase } from '../utils/eventSchedule';
 import { useNotificationStore } from '../store/notificationStore';
 import { parseApiErrors } from '../utils/validators';
-import { getEventPhase } from '../utils/eventSchedule';
 
 export default function EventDetailScreen({ route, navigation }) {
-  const { eventId } = route.params;
+  const { eventId, initialTab, postId, reviewMode } = route.params || {};
   const insets = useSafeAreaInsets();
   const { horizontalPad } = useLayout();
   const {
@@ -57,7 +56,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const { getWhatsAppInvite, clearEventus, setTicketQR, fetchMyTicket } = useEventusStore();
   const { fetchNotifications } = useNotificationStore();
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTab, setActiveTab] = useState(initialTab || 'info');
   const [isRegistered, setIsRegistered] = useState(false);
   const [registering, setRegistering] = useState(false);
 
@@ -69,6 +68,10 @@ export default function EventDetailScreen({ route, navigation }) {
       clearEventus();
     };
   }, [eventId]);
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [eventId, initialTab]);
 
   useEffect(() => {
     if (currentEvent && user) {
@@ -125,55 +128,58 @@ export default function EventDetailScreen({ route, navigation }) {
     }
   };
 
-  const promptRegister = () => {
+  const handleRegister = async () => {
+    if (registering) return;
     if (isPastEvent) {
       Alert.alert('Evento finalizado', 'Solo puedes ver el muro y los recuerdos de este evento.');
       return;
     }
-    if (spotsLeft <= 0) {
+    const limited = event?.capacity?.isLimited !== false;
+    const left = limited
+      ? Math.max(0, (event?.capacity?.max || 0) - (event?.capacity?.current || 0))
+      : 1;
+    if (limited && left <= 0) {
       Alert.alert('Sin cupos', 'Este evento ya no tiene lugares disponibles.');
       return;
     }
-    Alert.alert(
-      'Confirmar asistencia',
-      'Recibirás tu entrada con QR en Perfil → Mis entradas. No necesitas unirte a una escuadra ni a un grupo.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Confirmar y generar QR', onPress: handleRegister },
-      ]
-    );
-  };
+    if (!eventId) {
+      Alert.alert('Error', 'No se pudo identificar el evento.');
+      return;
+    }
 
-  const handleRegister = async () => {
     setRegistering(true);
     try {
       const result = await registerForEvent(eventId);
-      if (result.ticket) {
+      if (result?.ticket) {
         addTicket(result.ticket);
         setTicketQR(result.ticket);
-      } else {
-        await fetchMyTicket(eventId);
       }
       setIsRegistered(true);
       setActiveTab('ticket');
-      await fetchWallet();
-      await fetchNotifications();
-      await fetchEvent(eventId);
+
+      try {
+        await Promise.all([fetchWallet(), fetchNotifications(), fetchEvent(eventId)]);
+      } catch {
+        // La inscripción ya se guardó; solo falló la recarga auxiliar.
+      }
+      if (!result?.ticket) {
+        try {
+          const ticketData = await fetchMyTicket(eventId);
+          if (ticketData?.ticket) setTicketQR(ticketData.ticket);
+        } catch {
+          // El QR se puede refrescar desde la pestaña Mi entrada.
+        }
+      }
+
       Alert.alert(
-        result.alreadyRegistered ? 'Ya inscrito' : '¡Inscripción guardada!',
-        result.message ||
-          'Tu entrada quedó en Perfil → Mis entradas y en Notificaciones.',
-        [
-          { text: 'Ver entrada', onPress: () => setActiveTab('ticket') },
-          {
-            text: 'Mis entradas',
-            onPress: () => openProfileTab(navigation, 'ProfileHome'),
-          },
-          { text: 'Cerrar', style: 'cancel' },
-        ]
+        result?.alreadyRegistered ? 'Ya estabas inscrito' : '¡Asistencia confirmada!',
+        result?.message ||
+          'Tu QR dinámico está en la pestaña Mi entrada y en Perfil → Mis entradas.',
+        [{ text: 'Ver mi QR', onPress: () => setActiveTab('ticket') }]
       );
     } catch (error) {
-      Alert.alert('Error', typeof error === 'string' ? error : 'No se pudo inscribir');
+      const msg = typeof error === 'string' ? error : parseApiErrors(error);
+      Alert.alert('No se pudo confirmar', msg || 'Revisa tu conexión e intenta de nuevo.');
     } finally {
       setRegistering(false);
     }
@@ -223,7 +229,11 @@ export default function EventDetailScreen({ route, navigation }) {
     );
   }
 
-  const spotsLeft = Math.max(0, (event.capacity?.max || 0) - (event.capacity?.current || 0));
+  const isLimited = event.capacity?.isLimited !== false;
+  const spotsLeft = isLimited
+    ? Math.max(0, (event.capacity?.max || 0) - (event.capacity?.current || 0))
+    : 999;
+  const capacityFull = isLimited && spotsLeft <= 0;
   const fillPct = event.capacity?.max
     ? Math.round(((event.capacity?.current || 0) / event.capacity.max) * 100)
     : 0;
@@ -257,7 +267,7 @@ export default function EventDetailScreen({ route, navigation }) {
             onJoin={handleJoinSquad}
             onLeave={handleLeaveSquad}
             hasTicketAccess={isRegistered}
-            onRequestRegister={promptRegister}
+            onRequestRegister={handleRegister}
             embedInScroll
           />
         );
@@ -268,7 +278,7 @@ export default function EventDetailScreen({ route, navigation }) {
             eventId={eventId}
             event={event}
             isRegistered={isRegistered}
-            onRequestRegister={promptRegister}
+            onRequestRegister={handleRegister}
             embedInScroll
           />
         );
@@ -278,15 +288,15 @@ export default function EventDetailScreen({ route, navigation }) {
             <LockedSectionGate
               title="Recuerdos del evento"
               message="Confirma tu asistencia para subir fotos y ver el álbum colaborativo."
-              onConfirm={promptRegister}
+              onConfirm={handleRegister}
             />
           );
         }
         return <EventAlbumTab eventId={eventId} event={event} embedInScroll />;
       case 'metrics':
-        return <EventMetricsTab eventId={eventId} />;
+        return <EventMetricsTab eventId={eventId} eventTitle={event?.metadata?.title} />;
       default:
-        return <EventInfoTab event={event} onWhatsApp={handleWhatsApp} />;
+        return <EventInfoTab event={event} onWhatsApp={handleWhatsApp} navigation={navigation} />;
     }
   };
 
@@ -406,10 +416,10 @@ export default function EventDetailScreen({ route, navigation }) {
                   Confirma aquí para generar tu QR. No necesitas escuadra ni grupo de matchmaking.
                 </Text>
                 <AppButton
-                  title="Confirmar asistencia"
-                  onPress={promptRegister}
+                  title={registering ? 'Confirmando…' : 'Confirmar asistencia'}
+                  onPress={handleRegister}
                   loading={registering}
-                  disabled={spotsLeft <= 0}
+                  disabled={capacityFull || registering}
                 />
               </>
             )}

@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useEventusStore } from '../../../store/eventusStore';
+import { useAuthStore } from '../../../store/authStore';
 import AppInput from '../../ui/AppInput';
 import AppButton from '../../ui/AppButton';
 import AvatarImage from '../../ui/AvatarImage';
@@ -14,15 +17,29 @@ const TYPES = [
   { id: 'announcement', label: 'Anuncio' },
 ];
 
+const WALL_POLL_MS = 20000;
+
 export default function EventWallTab({ eventId, canPost, embedInScroll = false, bottomInset = 0 }) {
-  const { wall, fetchWall, postWall, isLoading } = useEventusStore();
+  const { wall, fetchWall, postWall, reactToPost, isLoading } = useEventusStore();
+  const myId = useAuthStore((s) => s.user?._id || s.user?.id);
   const [content, setContent] = useState('');
   const [type, setType] = useState('general');
   const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     fetchWall(eventId);
+    // Cuasi tiempo real: refresca el muro periódicamente mientras está visible
+    const interval = setInterval(() => fetchWall(eventId).catch(() => {}), WALL_POLL_MS);
+    return () => clearInterval(interval);
   }, [eventId]);
+
+  const handleReact = async (postId) => {
+    if (!canPost) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    try {
+      await reactToPost(eventId, postId, '❤️');
+    } catch (e) {}
+  };
 
   const handlePost = async () => {
     if (!content.trim()) return;
@@ -47,6 +64,8 @@ export default function EventWallTab({ eventId, canPost, embedInScroll = false, 
 
   const renderPost = (item, i) => {
     const initials = `${item.author?.profile?.firstName?.[0] || ''}${item.author?.profile?.lastName?.[0] || ''}`;
+    const reactions = item.reactions || [];
+    const iReacted = reactions.some((r) => String(r.user?._id || r.user) === String(myId));
     return (
       <View key={String(item._id || i)} style={styles.post}>
         <View style={styles.postRow}>
@@ -59,6 +78,23 @@ export default function EventWallTab({ eventId, canPost, embedInScroll = false, 
               <Text style={styles.typeBadge}>{item.type}</Text>
             </View>
             <Text style={styles.postBody}>{item.content}</Text>
+            <TouchableOpacity
+              style={styles.reactRow}
+              onPress={() => handleReact(item._id)}
+              activeOpacity={0.7}
+              disabled={!canPost}
+            >
+              <Ionicons
+                name={iReacted ? 'heart' : 'heart-outline'}
+                size={16}
+                color={iReacted ? colors.error : colors.outline}
+              />
+              {reactions.length > 0 ? (
+                <Text style={[styles.reactCount, iReacted && { color: colors.error }]}>
+                  {reactions.length}
+                </Text>
+              ) : null}
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -136,6 +172,16 @@ const styles = StyleSheet.create({
   author: { ...typography.label_lg, color: colors.on_surface },
   typeBadge: { ...typography.label_sm, color: colors.primary, textTransform: 'capitalize' },
   postBody: { ...typography.body_md, color: colors.on_surface_variant },
+  reactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+    paddingRight: spacing.sm,
+  },
+  reactCount: { ...typography.label_md, color: colors.outline },
   composer: {
     borderTopWidth: 1,
     borderTopColor: colors.outline_variant,

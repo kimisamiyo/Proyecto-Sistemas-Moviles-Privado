@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Linking } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AppButton from '../../ui/AppButton';
 import AvatarImage from '../../ui/AvatarImage';
 import { colors, typography, spacing, radius, shadows } from '../../../theme/tokens';
+import { openPublicProfile } from '../../../utils/navigationHelpers';
 
-export default function EventInfoTab({ event, onWhatsApp }) {
+export default function EventInfoTab({ event, onWhatsApp, navigation }) {
   const cover = event.metadata?.coverImage;
   const impact = event.impact?.goal || event.metadata?.impactStatement;
 
@@ -29,11 +30,18 @@ export default function EventInfoTab({ event, onWhatsApp }) {
           <Text style={styles.sectionTitle}>Organizadores</Text>
           {event.hosts.map((h, i) => {
             const u = h.userId?.profile ? h.userId : null;
+            const userId = u?._id || h.userId?._id || h.userId;
             const name = u
               ? `${u.profile?.firstName || ''} ${u.profile?.lastName || ''}`.trim()
               : 'Organizador';
             return (
-              <View key={i} style={styles.hostCard}>
+              <TouchableOpacity
+                key={i}
+                style={styles.hostCard}
+                activeOpacity={0.85}
+                disabled={!userId || !navigation}
+                onPress={() => userId && navigation && openPublicProfile(navigation, userId)}
+              >
                 <AvatarImage
                   uri={u?.profile?.avatar}
                   size={44}
@@ -43,7 +51,10 @@ export default function EventInfoTab({ event, onWhatsApp }) {
                   <Text style={styles.hostName}>{name}</Text>
                   <Text style={styles.hostRole}>{h.role || 'Organizador'}</Text>
                 </View>
-              </View>
+                {userId && navigation ? (
+                  <Ionicons name="chevron-forward" size={18} color={colors.outline} />
+                ) : null}
+              </TouchableOpacity>
             );
           })}
         </>

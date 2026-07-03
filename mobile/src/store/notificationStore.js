@@ -24,6 +24,16 @@ export const useNotificationStore = create((set, get) => ({
     }
   },
 
+  markOneRead: async (id) => {
+    const target = get().notifications.find((n) => n._id === id);
+    if (!target || target.read) return;
+    set({
+      notifications: get().notifications.map((n) => (n._id === id ? { ...n, read: true } : n)),
+      unreadCount: Math.max(0, get().unreadCount - 1),
+    });
+    client.patch('/notifications/read', { ids: [id] }).catch(() => {});
+  },
+
   markAllRead: async () => {
     const unreadIds = get()
       .notifications.filter((n) => !n.read)

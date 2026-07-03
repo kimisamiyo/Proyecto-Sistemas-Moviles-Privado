@@ -39,7 +39,7 @@ function peerName(user) {
   return `${user?.profile?.firstName || ''} ${user?.profile?.lastName || ''}`.trim() || 'Usuario';
 }
 
-export default function MessagesScreen({ navigation }) {
+export default function MessagesScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const {
     conversations,
@@ -50,7 +50,7 @@ export default function MessagesScreen({ navigation }) {
     declineConnection,
     sendConnectionRequest,
   } = useNetworkStore();
-  const [tab, setTab] = useState('chats');
+  const [tab, setTab] = useState(route?.params?.initialTab || 'chats');
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -61,6 +61,10 @@ export default function MessagesScreen({ navigation }) {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (route?.params?.initialTab) setTab(route.params.initialTab);
+  }, [route?.params?.initialTab]);
 
   const onRefresh = async () => {
     setRefreshing(true);

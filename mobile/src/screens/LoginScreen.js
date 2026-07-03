@@ -112,8 +112,8 @@ const styles = StyleSheet.create({
   },
   brand: { alignItems: 'center', marginBottom: spacing.xxl },
   logo: {
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 42,
-    fontWeight: '700',
     color: colors.primary,
     letterSpacing: -1,
   },

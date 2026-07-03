@@ -22,10 +22,11 @@ const generateQRToken = async (userId, eventId, rotationIndex = 0) => {
   const expiresAt = new Date(Date.now() + QR_TTL_SECONDS * 1000);
 
   try {
+    // QR estándar (módulos oscuros sobre fondo claro): máxima compatibilidad de escaneo
     const qrDataUrl = await QRCode.toDataURL(tokenString, {
       width: 300,
       margin: 2,
-      color: { dark: '#E7E5E5', light: '#0E0E0E' },
+      color: { dark: '#1a1c1b', light: '#ffffff' },
     });
     return {
       token: tokenString,

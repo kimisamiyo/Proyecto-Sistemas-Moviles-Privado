@@ -14,6 +14,7 @@ import AppButton from '../ui/AppButton';
 import { colors, typography, spacing, radius } from '../../theme/tokens';
 import { useNetworkStore } from '../../store/networkStore';
 import { parseApiErrors } from '../../utils/validators';
+import { openChat, openPublicProfile } from '../../utils/navigationHelpers';
 
 export default function ParticipantSheet({
   visible,
@@ -47,7 +48,7 @@ export default function ParticipantSheet({
 
   const openProfile = () => {
     onClose();
-    navigation.navigate('PublicProfile', { userId });
+    openPublicProfile(navigation, userId);
   };
 
   const openSquad = () => {
@@ -76,12 +77,9 @@ export default function ParticipantSheet({
     }
   };
 
-  const openChat = () => {
+  const handleOpenChat = () => {
     onClose();
-    navigation.getParent()?.navigate('Messages', {
-      screen: 'Chat',
-      params: { userId, user: participant },
-    });
+    openChat(navigation, userId, participant);
   };
 
   return (
@@ -127,7 +125,7 @@ export default function ParticipantSheet({
               <ActivityIndicator color={colors.primary} />
             ) : status === 'connected' ? (
               <>
-                <AppButton title="Enviar mensaje" onPress={openChat} />
+                <AppButton title="Enviar mensaje" onPress={handleOpenChat} />
                 <AppButton title="Ver perfil" variant="outline" onPress={openProfile} />
               </>
             ) : status === 'pending_incoming' ? (

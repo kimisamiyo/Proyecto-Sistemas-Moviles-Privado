@@ -17,6 +17,7 @@ import { useLayout } from '../utils/responsive';
 import { filterSquadsForExplore } from '../utils/squadFilters';
 import { canCreateEvent } from '../utils/eventPermissions';
 import { useAuthStore } from '../store/authStore';
+import { navigateToTab } from '../utils/navigationHelpers';
 
 export default function FeedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -83,7 +84,12 @@ export default function FeedScreen({ navigation }) {
           </Text>
         </View>
         <View style={styles.headerActions}>
-          <Ionicons name="search-outline" size={22} color={colors.primary} />
+          <TouchableOpacity
+            onPress={() => navigateToTab(navigation, 'Events')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="search-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
           <NotificationBell navigation={navigation} />
         </View>
       </View>
@@ -109,7 +115,7 @@ export default function FeedScreen({ navigation }) {
           subtitle="Toca una tarjeta o únete al instante"
           onSquadPress={handleSquadPress}
           onSquadJoin={handleSquadJoin}
-          onSeeAll={() => navigation.getParent()?.navigate('Squads')}
+          onSeeAll={() => navigateToTab(navigation, 'Squads')}
         />
 
         <FadeInView delay={100}>

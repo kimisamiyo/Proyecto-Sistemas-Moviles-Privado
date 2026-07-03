@@ -25,6 +25,7 @@ import BadgeTile from '../components/BadgeTile';
 import { useLayout } from '../utils/responsive';
 import { getEventCover } from '../utils/images';
 import { canCreateEvent } from '../utils/eventPermissions';
+import { openCreatorDashboard } from '../utils/navigationHelpers';
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -127,11 +128,30 @@ export default function ProfileScreen({ navigation }) {
         )}
 
         {showCreateEvent ? (
-          <AppButton
-            title="Crear evento"
-            onPress={() => navigation.navigate('CreateEvent')}
-            style={{ marginTop: spacing.lg }}
-          />
+          <>
+            <Text style={styles.sectionTitle}>Modo creador</Text>
+            <TouchableOpacity
+              style={styles.creatorCard}
+              activeOpacity={0.85}
+              onPress={() => openCreatorDashboard(navigation)}
+            >
+              <View style={styles.creatorIcon}>
+                <Ionicons name="stats-chart" size={20} color={colors.on_primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.creatorTitle}>Panel de métricas</Text>
+                <Text style={styles.creatorSub}>
+                  Impacto, asistencia y alcance de tus iniciativas
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.outline} />
+            </TouchableOpacity>
+            <AppButton
+              title="Crear evento"
+              onPress={() => navigation.navigate('CreateEvent')}
+              style={{ marginTop: spacing.sm }}
+            />
+          </>
         ) : null}
 
         <View style={styles.langRow}>
@@ -222,6 +242,27 @@ const styles = StyleSheet.create({
   ticketTitle: { ...typography.title_lg, color: colors.on_surface },
   ticketSub: { ...typography.body_sm, color: colors.outline },
   empty: { ...typography.body_md, color: colors.outline, marginBottom: spacing.lg },
+  creatorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: colors.surface_container_lowest,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.surface_container_high,
+    ...shadows.ambient,
+  },
+  creatorIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  creatorTitle: { ...typography.title_lg, color: colors.on_surface },
+  creatorSub: { ...typography.body_sm, color: colors.outline },
   langRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl },
   langBtn: {
     flex: 1,

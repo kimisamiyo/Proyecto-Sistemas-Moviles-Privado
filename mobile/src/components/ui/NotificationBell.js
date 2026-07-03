@@ -3,18 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius } from '../../theme/tokens';
 import { useNotificationStore } from '../../store/notificationStore';
-
-export function navigateToNotifications(navigation) {
-  const tab = navigation.getParent?.();
-  const app = tab?.getParent?.();
-  if (app?.navigate) {
-    app.navigate('Notifications');
-    return;
-  }
-  if (navigation.navigate) {
-    navigation.navigate('Notifications');
-  }
-}
+import { navigateToNotifications as goToNotifications } from '../../utils/navigationHelpers';
 
 export default function NotificationBell({ navigation, size = 22, color = colors.primary }) {
   const { unreadCount, fetchNotifications } = useNotificationStore();
@@ -26,7 +15,7 @@ export default function NotificationBell({ navigation, size = 22, color = colors
   return (
     <TouchableOpacity
       style={styles.hit}
-      onPress={() => navigateToNotifications(navigation)}
+      onPress={() => goToNotifications(navigation)}
       accessibilityLabel="Notificaciones"
       activeOpacity={0.7}
     >

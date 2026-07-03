@@ -5,11 +5,12 @@ const CollaborativeAlbum = require('../models/CollaborativeAlbum');
 const CommunityType = require('../models/CommunityType');
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
-const { generateQRToken } = require('../utils/qrGenerator');
+const { generateQRToken, verifyQRToken } = require('../utils/qrGenerator');
 const { pickCover } = require('../config/demoImages');
 const { userCanModerateEvent } = require('../utils/albumPermissions');
 const { createNotification } = require('../services/notificationService');
 const { buildTicketView } = require('../utils/ticketPayload');
+const { evaluateBadgesForUser, awardBadgeBySlug } = require('../services/badgeService');
 
 const createEvent = async (req, res) => {
   try {
@@ -69,6 +70,11 @@ const createEvent = async (req, res) => {
     user.creatorProfile.eventsPublished += 1;
     await user.save();
 
+    evaluateBadgesForUser(req.user._id, { eventId: event._id }).catch(() => {});
+    if (community.slug === 'quedada') {
+      awardBadgeBySlug(req.user._id, 'anfitrion_quedada', { eventId: event._id }).catch(() => {});
+    }
+
     res.status(201).json({ event, message: 'Iniciativa publicada en modo creador.' });
   } catch (error) {
     console.error('Create event error:', error);
@@ -106,9 +112,49 @@ const postToWall = async (req, res) => {
     user.metrics.wallPosts += 1;
     await user.save();
 
+    evaluateBadgesForUser(req.user._id, { eventId: req.params.eventId }).catch(() => {});
+
     res.json({ wall, message: 'Publicación agregada al muro.' });
   } catch (error) {
     res.status(500).json({ error: 'No se pudo publicar en el muro.' });
+  }
+};
+
+const reactToWallPost = async (req, res) => {
+  try {
+    const { emoji = '❤️' } = req.body;
+    const wall = await EventWall.findOne({ event: req.params.eventId });
+    if (!wall) return res.status(404).json({ error: 'Muro no encontrado.' });
+
+    const post = wall.posts.id(req.params.postId);
+    if (!post) return res.status(404).json({ error: 'Publicación no encontrada.' });
+
+    const uid = req.user._id.toString();
+    const existing = post.reactions.findIndex(
+      (r) => r.user.toString() === uid && r.emoji === emoji
+    );
+    if (existing >= 0) {
+      post.reactions.splice(existing, 1);
+    } else {
+      post.reactions.push({ user: req.user._id, emoji });
+      if (post.author.toString() !== uid) {
+        createNotification(
+          post.author,
+          'wall_reply',
+          'Reaccionaron a tu publicación',
+          `${req.user.profile?.firstName || 'Alguien'} reaccionó ${emoji} en el muro del evento.`,
+          { eventId: req.params.eventId, postId: post._id }
+        ).catch(() => {});
+      }
+    }
+    await wall.save();
+
+    const populated = await EventWall.findOne({ event: req.params.eventId })
+      .populate('posts.author', 'profile.firstName profile.lastName profile.avatar');
+    res.json({ wall: populated, reacted: existing < 0 });
+  } catch (error) {
+    console.error('reactToWallPost:', error);
+    res.status(500).json({ error: 'No se pudo reaccionar.' });
   }
 };
 
@@ -123,27 +169,99 @@ const getMatchGroups = async (req, res) => {
   }
 };
 
+// Afinidad real: coincidencias de intereses/afinidades del usuario con los
+// miembros del grupo y con los affinityTags de la comunidad del evento.
+const computeAffinityScore = (user, groupMembers = [], communityTags = []) => {
+  const mySignals = new Set(
+    [
+      ...(user.profile?.interests || []),
+      ...(user.profile?.disciplines || []),
+      ...(user.profile?.communityAffinities || []),
+      ...(user.preferences?.favoriteCommunities || []),
+    ].map((s) => s.toLowerCase().trim())
+  );
+
+  let base = 55;
+  const tagMatches = communityTags.filter((t) => mySignals.has(t.toLowerCase().trim())).length;
+  base += Math.min(tagMatches * 8, 24);
+
+  let memberOverlap = 0;
+  for (const member of groupMembers) {
+    const theirSignals = [
+      ...(member.user?.profile?.interests || []),
+      ...(member.user?.profile?.disciplines || []),
+    ].map((s) => s.toLowerCase().trim());
+    if (theirSignals.some((s) => mySignals.has(s))) memberOverlap += 1;
+  }
+  if (groupMembers.length > 0) {
+    base += Math.round((memberOverlap / groupMembers.length) * 20);
+  }
+
+  return Math.max(40, Math.min(99, base));
+};
+
 const joinMatchmaking = async (req, res) => {
   try {
     const event = await Event.findById(req.params.eventId);
     if (!event) return res.status(404).json({ error: 'Evento no encontrado.' });
 
-    let openGroup = await MatchGroup.findOne({
+    const me = await User.findById(req.user._id);
+    if (me?.preferences?.matchmakingOpen === false) {
+      return res.status(400).json({ error: 'Tienes el matchmaking desactivado en tus preferencias.' });
+    }
+
+    const alreadyInGroup = await MatchGroup.findOne({
+      event: event._id,
+      status: { $ne: 'dissolved' },
+      'members.user': req.user._id,
+    });
+    if (alreadyInGroup) {
+      return res.status(400).json({ error: 'Ya estás en un grupo para este evento.' });
+    }
+
+    const community = await CommunityType.findOne({ slug: event.metadata.communitySlug });
+    const communityTags = community?.matchmaking?.affinityTags || [];
+
+    // Entre los grupos abiertos, elegir el de mayor afinidad con el usuario.
+    const openGroups = await MatchGroup.find({
       event: event._id,
       status: 'forming',
       $expr: { $lt: [{ $size: '$members' }, '$maxSize'] },
-    });
+    }).populate('members.user', 'profile.interests profile.disciplines');
 
-    const memberEntry = { user: req.user._id, status: 'accepted', joinedAt: new Date(), affinityScore: Math.floor(Math.random() * 40) + 60 };
+    let openGroup = null;
+    let bestScore = -1;
+    for (const g of openGroups) {
+      const score = computeAffinityScore(me, g.members, communityTags);
+      if (score > bestScore) {
+        bestScore = score;
+        openGroup = g;
+      }
+    }
+
+    const affinityScore = openGroup
+      ? bestScore
+      : computeAffinityScore(me, [], communityTags);
+    const memberEntry = { user: req.user._id, status: 'accepted', joinedAt: new Date(), affinityScore };
 
     if (openGroup) {
-      const already = openGroup.members.some((m) => m.user.toString() === req.user._id.toString());
-      if (already) return res.status(400).json({ error: 'Ya estás en un grupo para este evento.' });
       openGroup.members.push(memberEntry);
-      if (openGroup.members.length >= openGroup.maxSize) openGroup.status = 'ready';
+      if (openGroup.members.length >= openGroup.maxSize) {
+        openGroup.status = 'ready';
+        await Promise.all(
+          openGroup.members.map((m) =>
+            createNotification(
+              m.user?._id || m.user,
+              'match_found',
+              '¡Grupo completo!',
+              `Tu grupo para "${event.metadata.title}" está listo. ¡No irás solo!`,
+              { eventId: event._id, groupId: openGroup._id }
+            ).catch(() => {})
+          )
+        );
+      }
       await openGroup.save();
     } else {
-      const community = await CommunityType.findOne({ slug: event.metadata.communitySlug });
       const maxSize = community?.matchmaking?.maxGroupSize || 6;
       openGroup = await MatchGroup.create({
         event: event._id,
@@ -419,6 +537,156 @@ const refreshTicketQR = async (req, res) => {
   }
 };
 
+/**
+ * Check-in con QR dinámico anti-fraude.
+ * Solo organizadores/moderadores del evento pueden escanear. Valida:
+ *  1. Token decodificable y dentro del TTL (capturas viejas no sirven).
+ *  2. Hash coincide con la última rotación guardada del ticket.
+ *  3. Ticket activo (no usado, revocado ni de otro evento).
+ */
+const checkInTicket = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { token, deviceFingerprint = '' } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token QR requerido.' });
+
+    const canScan = await userCanModerateEvent(req.user, eventId);
+    if (!canScan) {
+      return res.status(403).json({ error: 'Solo el organizador o staff puede validar entradas.' });
+    }
+
+    const result = verifyQRToken(token);
+    if (!result.valid) {
+      const reason = result.reason === 'expired'
+        ? 'El código expiró. Pide al asistente que muestre su QR actualizado (se regenera solo).'
+        : 'Código QR inválido.';
+      return res.status(400).json({ error: reason, reason: result.reason });
+    }
+
+    const { payload, tokenHash } = result;
+    if (payload.eventId !== eventId) {
+      return res.status(400).json({ error: 'Esta entrada pertenece a otro evento.', reason: 'wrong_event' });
+    }
+
+    const ticket = await Ticket.findOne({ user: payload.userId, event: eventId });
+    if (!ticket) {
+      return res.status(404).json({ error: 'No existe entrada para este asistente.', reason: 'not_found' });
+    }
+    if (ticket.status === 'used') {
+      return res.status(409).json({
+        error: 'Entrada ya utilizada. Posible intento de re-uso.',
+        reason: 'already_used',
+        checkInAt: ticket.checkInAt,
+      });
+    }
+    if (ticket.status !== 'active') {
+      return res.status(400).json({ error: `Entrada ${ticket.status}.`, reason: ticket.status });
+    }
+    if (ticket.tokenHash !== tokenHash) {
+      return res.status(409).json({
+        error: 'Código obsoleto: el QR ya rotó. Pide el código vigente en la app (anti-captura).',
+        reason: 'stale_token',
+      });
+    }
+
+    ticket.status = 'used';
+    ticket.checkInAt = new Date();
+    ticket.deviceFingerprint = deviceFingerprint;
+    await ticket.save();
+
+    const [event, attendee] = await Promise.all([
+      Event.findByIdAndUpdate(eventId, { $inc: { 'metrics.checkIns': 1 } }, { new: true }),
+      User.findById(payload.userId),
+    ]);
+
+    attendee.metrics.checkIns += 1;
+    attendee.metrics.impactPoints += 10;
+    await attendee.save();
+
+    // Secuencial para no otorgar la misma insignia dos veces en paralelo
+    awardBadgeBySlug(attendee._id, 'entrada_verificada', { eventId })
+      .then(() => evaluateBadgesForUser(attendee._id, { eventId }))
+      .catch(() => {});
+
+    createNotification(
+      attendee._id,
+      'event_register',
+      'Check-in confirmado',
+      `Tu entrada a "${event.metadata.title}" fue validada. ¡Disfruta el evento!`,
+      { eventId }
+    ).catch(() => {});
+
+    res.json({
+      success: true,
+      message: 'Check-in verificado. Entrada válida.',
+      attendee: {
+        id: attendee._id,
+        fullName: `${attendee.profile?.firstName || ''} ${attendee.profile?.lastName || ''}`.trim(),
+        avatar: attendee.profile?.avatar || '',
+        email: attendee.email,
+      },
+      checkInAt: ticket.checkInAt,
+      totalCheckIns: event.metrics.checkIns,
+    });
+  } catch (error) {
+    console.error('checkInTicket:', error);
+    res.status(500).json({ error: 'No se pudo validar la entrada.' });
+  }
+};
+
+/**
+ * Dashboard agregado del creador: todas sus iniciativas con KPIs consolidados.
+ */
+const getCreatorDashboard = async (req, res) => {
+  try {
+    const events = await Event.find({ createdBy: req.user._id }).sort({ 'schedule.date': -1 });
+
+    const totals = {
+      eventsPublished: events.length,
+      registrations: 0,
+      checkIns: 0,
+      views: 0,
+      shares: 0,
+      wallPosts: 0,
+      albumPhotos: 0,
+      matchGroupsFormed: 0,
+    };
+
+    const eventSummaries = events.map((e) => {
+      totals.registrations += e.metrics.registrations || 0;
+      totals.checkIns += e.metrics.checkIns || 0;
+      totals.views += e.metrics.views || 0;
+      totals.shares += e.metrics.shares || 0;
+      totals.wallPosts += e.metrics.wallPosts || 0;
+      totals.albumPhotos += e.metrics.albumPhotos || 0;
+      totals.matchGroupsFormed += e.metrics.matchGroupsFormed || 0;
+      return {
+        _id: e._id,
+        title: e.metadata.title,
+        communitySlug: e.metadata.communitySlug,
+        coverImage: e.metadata.coverImage,
+        date: e.schedule.date,
+        startTime: e.schedule.startTime,
+        venue: e.location.venue,
+        capacity: e.capacity,
+        capacityFill: e.capacity.max
+          ? Math.round(((e.capacity.current || 0) / e.capacity.max) * 100)
+          : 0,
+        metrics: e.metrics,
+      };
+    });
+
+    totals.attendanceRate = totals.registrations
+      ? Math.round((totals.checkIns / totals.registrations) * 100)
+      : 0;
+
+    res.json({ totals, events: eventSummaries });
+  } catch (error) {
+    console.error('getCreatorDashboard:', error);
+    res.status(500).json({ error: 'No se pudo cargar tu panel de creador.' });
+  }
+};
+
 const getWhatsAppInvite = async (req, res) => {
   try {
     const event = await Event.findById(req.params.eventId);
@@ -428,6 +696,8 @@ const getWhatsAppInvite = async (req, res) => {
     const user = await User.findById(req.user._id);
     user.metrics.invitesSent += 1;
     await user.save();
+
+    evaluateBadgesForUser(req.user._id, { eventId: event._id }).catch(() => {});
 
     const text = encodeURIComponent(event.sharing.whatsappMessage);
     const waUrl = `https://wa.me/?text=${text}`;
@@ -458,14 +728,17 @@ module.exports = {
   createEvent,
   getEventWall,
   postToWall,
+  reactToWallPost,
   getMatchGroups,
   joinMatchmaking,
   getEventMetrics,
+  getCreatorDashboard,
   getAlbum,
   addAlbumPhoto,
   reviewAlbumPhoto,
   getMyTicket,
   refreshTicketQR,
+  checkInTicket,
   getWhatsAppInvite,
   getUserBadgeWall,
 };

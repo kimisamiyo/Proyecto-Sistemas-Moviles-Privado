@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Linking from 'expo-linking';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -24,6 +25,8 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import SquadDetailScreen from '../screens/SquadDetailScreen';
 import CreateEventScreen from '../screens/CreateEventScreen';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
+import CheckInScannerScreen from '../screens/CheckInScannerScreen';
+import CreatorDashboardScreen from '../screens/CreatorDashboardScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -170,15 +173,43 @@ function AuthenticatedNavigator() {
       <Stack.Screen name="MainTabs" component={TabNavigator} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <Stack.Screen name="CheckInScanner" component={CheckInScannerScreen} />
+      <Stack.Screen name="CreatorDashboard" component={CreatorDashboardScreen} />
+      <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+      <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
     </Stack.Navigator>
   );
 }
+
+// Deep linking: eventus://event/:eventId lleva directo a la inscripción del
+// evento (invitaciones por WhatsApp generadas por el backend).
+const linking = {
+  prefixes: [Linking.createURL('/'), 'eventus://'],
+  config: {
+    screens: {
+      App: {
+        screens: {
+          MainTabs: {
+            screens: {
+              Feed: {
+                initialRouteName: 'FeedHome',
+                screens: {
+                  EventDetail: 'event/:eventId',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
 
 export default function MainNavigator() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <>
