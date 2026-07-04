@@ -40,6 +40,15 @@ import { parseApiErrors } from '../utils/validators';
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId, initialTab, postId, reviewMode } = route.params || {};
   const insets = useSafeAreaInsets();
+
+  if (!eventId) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface }}>
+        <Text style={{ ...typography.body_lg, color: colors.error, marginBottom: 16 }}>Evento no disponible</Text>
+        <AppButton title="Volver" onPress={() => navigation.goBack()} />
+      </View>
+    );
+  }
   const { horizontalPad } = useLayout();
   const {
     currentEvent,
@@ -122,9 +131,16 @@ export default function EventDetailScreen({ route, navigation }) {
   const handleWhatsApp = async () => {
     try {
       const data = await getWhatsAppInvite(eventId);
-      Linking.openURL(data.whatsappUrl);
+      const url = data.whatsappUrl;
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        const webUrl = url.replace('whatsapp://send', 'https://wa.me/').replace('?text=', '?text=');
+        await Linking.openURL(data.whatsappUrl.includes('wa.me') ? url : webUrl);
+      }
     } catch {
-      Alert.alert('Error', 'No se pudo abrir WhatsApp');
+      Alert.alert('WhatsApp', 'No se pudo compartir. ¿Tienes WhatsApp instalado?');
     }
   };
 
@@ -240,7 +256,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const eventDate = new Date(event.schedule?.date);
   const cover = getEventCover(event);
 
-  const scrollBottomPad = spacing.xxl;
+  const scrollBottomPad = 100;
 
   const renderTab = () => {
     switch (activeTab) {

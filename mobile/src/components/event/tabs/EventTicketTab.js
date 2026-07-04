@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, ActivityIndicator, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEventusStore } from '../../../store/eventusStore';
 import { useWalletStore } from '../../../store/walletStore';
@@ -22,6 +22,30 @@ export default function EventTicketTab({
   const [hint, setHint] = useState('');
   const timerRef = useRef(null);
   const ttlRef = useRef(90);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const hasAnimated = useRef(false);
+
+  const runRevealAnimation = useCallback(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    slideAnim.setValue(-60);
+    scaleAnim.setValue(0.85);
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        easing: Easing.out(Easing.back(1.2)),
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [slideAnim, scaleAnim]);
 
   const applyTicket = useCallback(
     (ticket) => {
@@ -32,9 +56,10 @@ export default function EventTicketTab({
       setSeconds(ttl);
       setTicketQR(ticket);
       setHint('');
+      setTimeout(runRevealAnimation, 100);
       return true;
     },
-    [setTicketQR]
+    [setTicketQR, runRevealAnimation]
   );
 
   const walletFallback = useCallback(() => {
@@ -102,7 +127,16 @@ export default function EventTicketTab({
   const title = event?.metadata?.title || ticketQR?.eventTitle || 'Tu evento';
 
   const body = (
-    <View style={styles.card}>
+    <Animated.View
+      style={[
+        styles.card,
+        { transform: [{ translateY: slideAnim }, { scale: scaleAnim }] },
+      ]}
+    >
+      <View style={styles.ticketHeader}>
+        <Ionicons name="ticket-outline" size={20} color={colors.primary} />
+        <Text style={styles.ticketLabel}>MI ENTRADA</Text>
+      </View>
       <Text style={styles.title} numberOfLines={2}>
         {title}
       </Text>
@@ -111,7 +145,9 @@ export default function EventTicketTab({
       {loading && !qrUri ? (
         <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       ) : qrUri ? (
-        <Image source={{ uri: qrUri }} style={styles.qr} resizeMode="contain" />
+        <Animated.View style={styles.qrWrap}>
+          <Image source={{ uri: qrUri }} style={styles.qr} resizeMode="contain" />
+        </Animated.View>
       ) : (
         <View style={styles.emptyQr}>
           <Ionicons name="qr-code-outline" size={56} color={colors.outline} />
@@ -119,19 +155,19 @@ export default function EventTicketTab({
         </View>
       )}
 
-      <Text style={styles.timer}>Se renueva en {mm}:{ss}</Text>
+      <View style={styles.timerRow}>
+        <Ionicons name="time-outline" size={16} color={colors.primary} />
+        <Text style={styles.timer}>Se renueva en {mm}:{ss}</Text>
+      </View>
       <AppButton
         title="Actualizar QR"
         variant="outline"
         onPress={() => loadTicket(true)}
         loading={loading}
       />
-    </View>
+    </Animated.View>
   );
 
-  if (embedInScroll) {
-    return <View style={styles.wrap}>{body}</View>;
-  }
   return <View style={styles.wrap}>{body}</View>;
 }
 
@@ -144,18 +180,48 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     borderWidth: 1,
     borderColor: colors.outline_variant,
+    shadowColor: '#1a1c1b',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  ticketHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  ticketLabel: {
+    ...typography.label_sm,
+    color: colors.primary,
+    letterSpacing: 2,
+    fontWeight: '700',
   },
   title: { ...typography.headline_md, color: colors.on_surface, textAlign: 'center' },
   sub: { ...typography.body_sm, color: colors.outline, marginTop: spacing.xs, marginBottom: spacing.lg },
   loader: { marginVertical: spacing.xxl },
-  qr: {
-    width: 260,
-    height: 260,
+  qrWrap: {
+    padding: spacing.md,
     backgroundColor: '#fff',
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  qr: {
+    width: 240,
+    height: 240,
+    borderRadius: radius.md,
   },
   emptyQr: { alignItems: 'center', padding: spacing.xxl, gap: spacing.md },
   hint: { ...typography.body_md, color: colors.outline, textAlign: 'center' },
-  timer: { ...typography.title_lg, color: colors.primary, marginBottom: spacing.md },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  timer: { ...typography.title_lg, color: colors.primary },
 });

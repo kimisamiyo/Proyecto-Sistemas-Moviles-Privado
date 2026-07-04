@@ -216,7 +216,23 @@ const joinMatchmaking = async (req, res) => {
       'members.user': req.user._id,
     });
     if (alreadyInGroup) {
-      return res.status(400).json({ error: 'Ya estás en un grupo para este evento.' });
+      if (req.body?.force) {
+        alreadyInGroup.members = alreadyInGroup.members.filter(
+          (m) => String(m.user) !== String(req.user._id)
+        );
+        if (alreadyInGroup.members.length === 0) {
+          alreadyInGroup.status = 'dissolved';
+        } else if (alreadyInGroup.status === 'ready') {
+          alreadyInGroup.status = 'forming';
+        }
+        await alreadyInGroup.save();
+      } else {
+        return res.status(400).json({
+          error: 'Ya estás en un grupo para este evento.',
+          currentGroupId: alreadyInGroup._id,
+          canSwitch: true,
+        });
+      }
     }
 
     const community = await CommunityType.findOne({ slug: event.metadata.communitySlug });
@@ -282,6 +298,29 @@ const joinMatchmaking = async (req, res) => {
   } catch (error) {
     console.error('Matchmaking error:', error);
     res.status(500).json({ error: 'Matchmaking no disponible.' });
+  }
+};
+
+const leaveMatchmaking = async (req, res) => {
+  try {
+    const group = await MatchGroup.findOne({
+      event: req.params.eventId,
+      status: { $ne: 'dissolved' },
+      'members.user': req.user._id,
+    });
+    if (!group) {
+      return res.status(404).json({ error: 'No estás en ningún grupo para este evento.' });
+    }
+    group.members = group.members.filter((m) => String(m.user) !== String(req.user._id));
+    if (group.members.length === 0) {
+      group.status = 'dissolved';
+    } else if (group.status === 'ready') {
+      group.status = 'forming';
+    }
+    await group.save();
+    res.json({ message: 'Saliste del grupo.', groupId: group._id });
+  } catch (error) {
+    res.status(500).json({ error: 'No se pudo salir del grupo.' });
   }
 };
 
@@ -699,14 +738,25 @@ const getWhatsAppInvite = async (req, res) => {
 
     evaluateBadgesForUser(req.user._id, { eventId: event._id }).catch(() => {});
 
-    const text = encodeURIComponent(event.sharing.whatsappMessage);
+    const title = event.metadata.title;
+    const code = event.sharing.inviteCode;
+    const deepLink = `eventus://event/${event._id}`;
+    const downloadUrl = 'https://expo.dev/@jesusrazos-team/event-us';
+    const message =
+      `🎉 *${title}*\n\n` +
+      `Te invito a este evento en EventUs. ¡No vayas solo!\n\n` +
+      `📲 Abre la app: ${deepLink}\n` +
+      `🔑 Código: ${code}\n\n` +
+      `¿No tienes la app? Descárgala aquí: ${downloadUrl}`;
+
+    const text = encodeURIComponent(message);
     const waUrl = `https://wa.me/?text=${text}`;
 
     res.json({
       whatsappUrl: waUrl,
-      inviteCode: event.sharing.inviteCode,
-      deepLink: event.sharing.deepLink,
-      message: event.sharing.whatsappMessage,
+      inviteCode: code,
+      deepLink,
+      message,
     });
   } catch (error) {
     res.status(500).json({ error: 'No se pudo generar enlace.' });
@@ -731,6 +781,7 @@ module.exports = {
   reactToWallPost,
   getMatchGroups,
   joinMatchmaking,
+  leaveMatchmaking,
   getEventMetrics,
   getCreatorDashboard,
   getAlbum,

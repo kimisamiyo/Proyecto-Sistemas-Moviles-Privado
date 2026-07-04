@@ -16,7 +16,7 @@ const SquadSchema = new mongoose.Schema({
   communitySlug: { type: String, required: true },
   leader: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   members: [SquadMemberSchema],
-  maxSize: { type: Number, default: 5, min: 2, max: 30 },
+  maxSize: { type: Number, default: 5, min: 2, max: 100 },
   status: {
     type: String,
     enum: ['recruiting', 'full', 'locked', 'en_route', 'completed', 'cancelled'],

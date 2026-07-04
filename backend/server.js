@@ -15,18 +15,23 @@ const eventusRoutes = require('./routes/eventus');
 const squadRoutes = require('./routes/squads');
 const notificationRoutes = require('./routes/notifications');
 const uploadRoutes = require('./routes/uploads');
+const roleRequestRoutes = require('./routes/roleRequests');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '20mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 1500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { trustProxy: false, xForwardedForHeader: false },
   message: { error: 'Too many requests. Please try again later.' }
 });
 app.use('/api/', limiter);
@@ -41,6 +46,7 @@ app.use('/api/v1/eventus', eventusRoutes);
 app.use('/api/v1/squads', squadRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
+app.use('/api/v1/role-requests', roleRequestRoutes);
 
 app.get('/', (req, res) => {
   res.json({

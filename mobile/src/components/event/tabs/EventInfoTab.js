@@ -66,7 +66,7 @@ export default function EventInfoTab({ event, onWhatsApp, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.lg },
+  wrap: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxxl },
   sectionTitle: { ...typography.headline_md, color: colors.on_surface, fontSize: 18 },
   body: { ...typography.body_md, color: colors.on_surface_variant, lineHeight: 22 },
   impactBanner: { borderRadius: radius.xl, overflow: 'hidden', minHeight: 120, ...shadows.ambient },

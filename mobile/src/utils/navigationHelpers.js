@@ -66,18 +66,19 @@ export function openEventDetailTab(navigation, eventId, tab, extraParams = {}) {
 }
 
 export function openSquadDetail(navigation, squadId) {
-  if (!squadId) return;
-  navigateToTab(navigation, 'Squads', {
-    screen: 'SquadDetail',
-    params: { squadId },
-  });
+  if (!squadId || !navigation) return;
+  if (!navigateToAppScreen(navigation, 'SquadDetail', { squadId })) {
+    if (!navigateToTab(navigation, 'Squads', { screen: 'SquadDetail', params: { squadId } })) {
+      navigation.navigate('SquadDetail', { squadId });
+    }
+  }
 }
 
 export function openMessages(navigation, initialTab = 'chats') {
-  navigateToTab(navigation, 'Messages', {
-    screen: 'MessagesHome',
-    params: { initialTab },
-  });
+  if (!navigation) return;
+  if (!navigateToTab(navigation, 'Messages', { screen: 'MessagesHome', params: { initialTab } })) {
+    navigation.navigate('Messages', { screen: 'MessagesHome', params: { initialTab } });
+  }
 }
 
 export function openCheckInScanner(navigation, eventId, eventTitle) {

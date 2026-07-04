@@ -8,9 +8,11 @@ import {
   Alert,
   Image,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Location from "expo-location";
 import Screen from "../components/ui/Screen";
 import AppInput from "../components/ui/AppInput";
 import AppButton from "../components/ui/AppButton";
@@ -64,6 +66,7 @@ export default function CreateEventScreen({ navigation }) {
     config.DEFAULT_LOCATION.latitude,
   ]);
   const [mapTouched, setMapTouched] = useState(Platform.OS === "web");
+  const [geoLoading, setGeoLoading] = useState(false);
   const [coverUri, setCoverUri] = useState(null);
   const [coverUrl, setCoverUrl] = useState(null);
   const [coverUploading, setCoverUploading] = useState(false);
@@ -274,6 +277,44 @@ export default function CreateEventScreen({ navigation }) {
               value={venue}
               onChangeText={setVenue}
             />
+            <TouchableOpacity
+              style={styles.geoBtn}
+              activeOpacity={0.7}
+              disabled={geoLoading}
+              onPress={async () => {
+                setGeoLoading(true);
+                try {
+                  const { status } = await Location.requestForegroundPermissionsAsync();
+                  if (status !== "granted") {
+                    Alert.alert("Ubicación", "Permite el acceso a tu ubicación para autocompletar.");
+                    return;
+                  }
+                  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                  const newCoords = [loc.coords.longitude, loc.coords.latitude];
+                  setCoordinates(newCoords);
+                  setMapTouched(true);
+                  const [geo] = await Location.reverseGeocodeAsync({
+                    latitude: loc.coords.latitude,
+                    longitude: loc.coords.longitude,
+                  });
+                  if (geo) {
+                    const parts = [geo.name, geo.street, geo.district || geo.subregion, geo.city].filter(Boolean);
+                    setVenue(parts.slice(0, 3).join(", "));
+                  }
+                } catch {
+                  Alert.alert("Error", "No se pudo obtener tu ubicación.");
+                } finally {
+                  setGeoLoading(false);
+                }
+              }}
+            >
+              {geoLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="navigate-outline" size={16} color={colors.primary} />
+              )}
+              <Text style={styles.geoBtnText}>Usar mi ubicación actual</Text>
+            </TouchableOpacity>
             <Text style={styles.fieldLabel}>Fecha del evento</Text>
             <ScrollView
               horizontal
@@ -465,5 +506,23 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     marginBottom: spacing.lg,
     backgroundColor: colors.surface_container_high,
+  },
+  geoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    alignSelf: "flex-start",
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary_fixed,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  geoBtnText: {
+    ...typography.label_sm,
+    color: colors.primary,
+    fontWeight: "600",
   },
 });

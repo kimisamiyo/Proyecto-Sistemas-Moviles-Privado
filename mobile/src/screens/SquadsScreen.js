@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 
 import {
 
@@ -41,11 +42,10 @@ import { useLayout } from '../utils/responsive';
 import { parseApiErrors } from '../utils/validators';
 
 import { filterSquadsForExplore } from '../utils/squadFilters';
-import { getEventPhase } from '../utils/eventSchedule';
 
 
 
-export default function SquadsScreen({ navigation }) {
+export default function SquadsScreen({ navigation, route }) {
 
   const insets = useSafeAreaInsets();
 
@@ -61,17 +61,20 @@ export default function SquadsScreen({ navigation }) {
 
   const [refreshing, setRefreshing] = useState(false);
 
-
-
   useEffect(() => {
+    if (route?.params?.showMine) {
+      setTab('mine');
+      fetchMySquads();
+    }
+  }, [route?.params?.showMine]);
 
-    fetchOpenSquads();
-
-    fetchMySquads();
-
-    fetchWallet();
-
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchOpenSquads();
+      fetchMySquads();
+      fetchWallet();
+    }, [])
+  );
 
 
 
@@ -98,19 +101,14 @@ export default function SquadsScreen({ navigation }) {
 
 
   const squadsForMyEvents = useMemo(
-
-    () =>
-
-      openSquads.filter((s) => {
+    () => {
+      if (ticketEventIds.size === 0) return openSquads;
+      return openSquads.filter((s) => {
         const eid = String(s.event?._id || s.event || '');
-        if (!eid || !ticketEventIds.has(eid)) return false;
-        const sch = s.event?.schedule;
-        if (sch && getEventPhase(sch) === 'past') return false;
-        return true;
-      }),
-
+        return ticketEventIds.has(eid);
+      });
+    },
     [openSquads, ticketEventIds]
-
   );
 
 
@@ -176,17 +174,9 @@ export default function SquadsScreen({ navigation }) {
   const emptyMessage =
 
     tab === 'explore'
-
-      ? ticketEventIds.size === 0
-
-        ? 'Confirma asistencia en un evento para explorar escuadras.'
-
-        : mySquads.length > 0 && exploreList.length === 0
-
-          ? 'Ya tienes escuadra en tus eventos activos. Revisa Mis escuadras.'
-
-          : 'No hay escuadras nuevas para explorar en tus eventos.'
-
+      ? exploreList.length === 0 && mySquads.length > 0
+        ? 'Ya estás en todas las escuadras disponibles. ¡Crea una nueva!'
+        : 'No hay escuadras disponibles aún. ¡Sé el primero en crear una!'
       : 'Aún no perteneces a ninguna escuadra.';
 
 
@@ -255,22 +245,14 @@ export default function SquadsScreen({ navigation }) {
 
 
 
-      {tab === 'explore' && ticketEventIds.size > 0 ? (
-
+      {tab === 'explore' ? (
         <TextInput
-
           style={[styles.input, { marginHorizontal: horizontalPad }]}
-
           placeholder="Tu aporte al plan (opcional)"
-
           placeholderTextColor={colors.outline}
-
           value={planNote}
-
           onChangeText={setPlanNote}
-
         />
-
       ) : null}
 
 

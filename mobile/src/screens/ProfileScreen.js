@@ -151,8 +151,44 @@ export default function ProfileScreen({ navigation }) {
               onPress={() => navigation.navigate('CreateEvent')}
               style={{ marginTop: spacing.sm }}
             />
+            {(user?.role === 'admin' || user?.role === 'moderator') ? (
+              <TouchableOpacity
+                style={[styles.creatorCard, { marginTop: spacing.md }]}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('AdminRoleRequests')}
+              >
+                <View style={[styles.creatorIcon, { backgroundColor: colors.secondary }]}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.creatorTitle}>Solicitudes de rol</Text>
+                  <Text style={styles.creatorSub}>Revisar y aprobar organizadores</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.outline} />
+              </TouchableOpacity>
+            ) : null}
           </>
-        ) : null}
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>¿Quieres organizar eventos?</Text>
+            <TouchableOpacity
+              style={styles.creatorCard}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('RequestOrganizer')}
+            >
+              <View style={[styles.creatorIcon, { backgroundColor: colors.secondary }]}>
+                <Ionicons name="megaphone-outline" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.creatorTitle}>Solicitar ser organizador</Text>
+                <Text style={styles.creatorSub}>
+                  Envía tu solicitud para crear y gestionar eventos
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.outline} />
+            </TouchableOpacity>
+          </>
+        )}
 
         <View style={styles.langRow}>
           <TouchableOpacity

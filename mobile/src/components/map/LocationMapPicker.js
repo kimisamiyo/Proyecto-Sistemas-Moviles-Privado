@@ -1,51 +1,71 @@
-import React, { useRef } from 'react';
+import React, { useRef, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { colors, typography, spacing, radius } from '../../theme/tokens';
 import config from '../../config';
-import { smokeMapStyle } from '../../utils/mapStyles';
 
 const DEFAULT = {
   latitude: config.DEFAULT_LOCATION.latitude,
   longitude: config.DEFAULT_LOCATION.longitude,
 };
 
-/**
- * Mini mapa para elegir el punto del evento (GeoJSON: [lng, lat]).
- */
+function buildPickerHTML(lat, lng) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; }
+    html, body, #map { width: 100%; height: 100%; border-radius: 16px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([${lat}, ${lng}], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    var marker = L.marker([${lat}, ${lng}], { draggable: true }).addTo(map);
+    function sendCoords(latlng) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ lat: latlng.lat, lng: latlng.lng }));
+    }
+    marker.on('dragend', function() { sendCoords(marker.getLatLng()); });
+    map.on('click', function(e) { marker.setLatLng(e.latlng); sendCoords(e.latlng); });
+  </script>
+</body>
+</html>`;
+}
+
 export default function LocationMapPicker({ coordinates, onChange, height = 200 }) {
-  const mapRef = useRef(null);
+  const webRef = useRef(null);
   const lng = coordinates?.[0] ?? DEFAULT.longitude;
   const lat = coordinates?.[1] ?? DEFAULT.latitude;
-  const region = {
-    latitude: lat,
-    longitude: lng,
-    latitudeDelta: 0.012,
-    longitudeDelta: 0.012,
-  };
 
-  const setPoint = (coord) => {
-    onChange?.([coord.longitude, coord.latitude]);
-  };
+  const handleMessage = useCallback((event) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      onChange?.([msg.lng, msg.lat]);
+    } catch { /* ignore */ }
+  }, [onChange]);
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>Ubicación en el mapa</Text>
       <Text style={styles.hint}>Toca el mapa o arrastra el pin para marcar el punto del evento.</Text>
-      <MapView
-        ref={mapRef}
+      <WebView
+        ref={webRef}
+        source={{ html: buildPickerHTML(lat, lng) }}
         style={[styles.map, { height }]}
-        initialRegion={region}
-        region={region}
-        customMapStyle={smokeMapStyle}
-        onPress={(e) => setPoint(e.nativeEvent.coordinate)}
-      >
-        <Marker
-          coordinate={{ latitude: lat, longitude: lng }}
-          draggable
-          onDragEnd={(e) => setPoint(e.nativeEvent.coordinate)}
-        />
-      </MapView>
+        onMessage={handleMessage}
+        javaScriptEnabled
+        domStorageEnabled
+        originWhitelist={['*']}
+        scrollEnabled={false}
+        bounces={false}
+        overScrollMode="never"
+      />
       <Text style={styles.coords}>
         {lat.toFixed(5)}, {lng.toFixed(5)}
       </Text>

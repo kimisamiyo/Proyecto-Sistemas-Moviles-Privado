@@ -10,7 +10,7 @@ export default function RegistrationAction({ onRegister, isRegistered = false, t
   const t = tProp || tStore;
   const handlePress = async () => {
     if (isRegistered) return;
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     onRegister?.();
   };
 

@@ -71,3 +71,4 @@ Text inputs should feel like a physical form. Use `surface_container_low` for th
 *   **Don't** use pure white (#FFFFFF) for text. Always use `on_surface` (#e7e5e5) to reduce eye strain in dark mode and maintain a premium, slightly muted look.
 *   **Don't** use "Card Shadows" for everything. Reserve shadows for elements that physically move over others (dropdowns, modals).
 *   **Don't** use vibrant colors for errors. Use the sophisticated `error` (#ee7d77) and `error_container` (#7f2927) to signal issues without breaking the "monolith" aesthetic.
+##

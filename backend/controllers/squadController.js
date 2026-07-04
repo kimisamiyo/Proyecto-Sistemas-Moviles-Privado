@@ -18,7 +18,7 @@ const formatSquad = (squad) => {
 
 const listOpenSquads = async (req, res) => {
   try {
-    const { eventId, community, limit = 30 } = req.query;
+    const { eventId, community, limit = 30, includePast } = req.query;
     const query = { status: { $in: ['recruiting', 'full'] } };
     if (eventId) query.event = eventId;
     if (community) query.communitySlug = community;
@@ -33,17 +33,15 @@ const listOpenSquads = async (req, res) => {
       .sort({ updatedAt: -1 })
       .limit(parseInt(limit, 10));
 
-    const activeEventSquads = squads.filter(
-      (s) => s.event?.schedule && isEventActive(s.event.schedule)
-    );
-    const recruiting = activeEventSquads.filter(
+    const validSquads = squads.filter((s) => s.event != null);
+    const recruiting = validSquads.filter(
       (s) => s.status === 'recruiting' || s.slotsOpen > 0
     );
 
     res.json({
-      squads: activeEventSquads.map(formatSquad),
+      squads: validSquads.map(formatSquad),
       recruiting: recruiting.map(formatSquad),
-      total: activeEventSquads.length,
+      total: validSquads.length,
     });
   } catch (error) {
     console.error('listOpenSquads:', error);
@@ -54,6 +52,7 @@ const listOpenSquads = async (req, res) => {
 const getMySquads = async (req, res) => {
   try {
     const squads = await Squad.find({
+      status: { $nin: ['cancelled', 'completed'] },
       $or: [
         { leader: req.user._id },
         { 'members.user': req.user._id, 'members.status': 'active' },
@@ -66,9 +65,7 @@ const getMySquads = async (req, res) => {
       .populate('members.user', 'profile.firstName profile.lastName profile.avatar')
       .sort({ updatedAt: -1 });
 
-    const activeOnly = squads.filter((s) => s.event?.schedule && isEventActive(s.event.schedule));
-
-    res.json({ squads: activeOnly.map(formatSquad) });
+    res.json({ squads: squads.map(formatSquad) });
   } catch (error) {
     res.status(500).json({ error: 'Error al cargar tus escuadras.' });
   }

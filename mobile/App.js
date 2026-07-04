@@ -15,24 +15,16 @@ import { useAuthStore } from './src/store/authStore';
 import { colors } from './src/theme/tokens';
 import * as Sentry from '@sentry/react-native';
 
-Sentry.init({
-  dsn: 'https://ceeea4a88fe54c2675a2d43cd308f519@o4511437324419072.ingest.us.sentry.io/4511437335363584',
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Enable Logs
-  enableLogs: true,
-
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
+if (!__DEV__) {
+  Sentry.init({
+    dsn: 'https://ceeea4a88fe54c2675a2d43cd308f519@o4511437324419072.ingest.us.sentry.io/4511437335363584',
+    sendDefaultPii: true,
+    enableLogs: true,
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1,
+    integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+  });
+}
 
 function BootSplash() {
   return (
@@ -43,7 +35,8 @@ function BootSplash() {
   );
 }
 
-export default Sentry.wrap(function App() {
+const wrapper = __DEV__ ? (c) => c : Sentry.wrap;
+export default wrapper(function App() {
   const [fontsLoaded] = useFonts({
     Manrope: Manrope_400Regular,
     'Manrope-Medium': Manrope_500Medium,

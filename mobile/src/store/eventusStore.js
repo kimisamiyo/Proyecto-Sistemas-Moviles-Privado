@@ -96,9 +96,20 @@ export const useEventusStore = create((set, get) => ({
     }
   },
 
-  joinMatchmaking: async (eventId) => {
+  joinMatchmaking: async (eventId, force = false) => {
     try {
-      const { data } = await client.post(`/eventus/events/${eventId}/groups/join`);
+      const { data } = await client.post(`/eventus/events/${eventId}/groups/join`, { force });
+      await get().fetchMatchGroups(eventId);
+      return data;
+    } catch (e) {
+      set({ error: parseApiErrors(e) });
+      throw e;
+    }
+  },
+
+  leaveMatchmaking: async (eventId) => {
+    try {
+      const { data } = await client.post(`/eventus/events/${eventId}/groups/leave`);
       await get().fetchMatchGroups(eventId);
       return data;
     } catch (e) {

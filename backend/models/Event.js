@@ -98,8 +98,16 @@ EventSchema.pre('save', function generateInvite(next) {
     this.sharing.deepLink = `eventus://event/${this._id || 'new'}`;
   }
   if (!this.sharing.whatsappMessage) {
+    const title = this.metadata.title;
+    const code = this.sharing.inviteCode;
+    const deepLink = this.sharing.deepLink;
+    const downloadUrl = 'https://expo.dev/@jesusrazos-team/event-us';
     this.sharing.whatsappMessage =
-      `¡Únete a "${this.metadata.title}" en EventUs! Código: ${this.sharing.inviteCode} — ${this.sharing.deepLink}`;
+      `🎉 *${title}*\n\n` +
+      `Te invito a este evento en EventUs. ¡No vayas solo!\n\n` +
+      `📲 Abre la app: ${deepLink}\n` +
+      `🔑 Código: ${code}\n\n` +
+      `¿No tienes la app? Descárgala aquí: ${downloadUrl}`;
   }
   next();
 });

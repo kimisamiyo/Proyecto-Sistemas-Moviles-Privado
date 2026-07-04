@@ -10,6 +10,7 @@ const {
   reactToWallPost,
   getMatchGroups,
   joinMatchmaking,
+  leaveMatchmaking,
   getEventMetrics,
   getCreatorDashboard,
   getAlbum,
@@ -31,6 +32,7 @@ router.post('/events/:eventId/wall', auth, wallPostRules, validate, postToWall);
 router.post('/events/:eventId/wall/:postId/react', auth, reactToWallPost);
 router.get('/events/:eventId/groups', auth, getMatchGroups);
 router.post('/events/:eventId/groups/join', auth, joinMatchmaking);
+router.post('/events/:eventId/groups/leave', auth, leaveMatchmaking);
 router.get('/events/:eventId/metrics', auth, getEventMetrics);
 router.get('/events/:eventId/album', auth, getAlbum);
 router.post('/events/:eventId/album', auth, addAlbumPhoto);

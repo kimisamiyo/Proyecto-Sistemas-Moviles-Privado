@@ -25,8 +25,17 @@ import { useWalletStore } from '../store/walletStore';
 import { parseApiErrors } from '../utils/validators';
 
 export default function SquadDetailScreen({ route, navigation }) {
-  const { squadId } = route.params;
+  const { squadId } = route.params || {};
   const insets = useSafeAreaInsets();
+
+  if (!squadId) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface, paddingTop: insets.top }}>
+        <Text style={{ ...typography.body_lg, color: colors.error, marginBottom: 16 }}>Escuadra no disponible</Text>
+        <AppButton title="Volver" onPress={() => navigation.goBack()} />
+      </View>
+    );
+  }
   const { horizontalPad } = useLayout();
   const { joinSquad } = useSquadStore();
   const { user } = useAuthStore();

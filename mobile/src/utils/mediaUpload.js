@@ -16,8 +16,9 @@ export async function pickImageFromGallery() {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     allowsEditing: true,
-    quality: 0.75,
+    quality: 0.5,
     base64: true,
+    exif: false,
   });
 
   if (result.canceled || !result.assets?.[0]) {
@@ -38,7 +39,7 @@ export async function pickImageFromGallery() {
 }
 
 export async function uploadImageDataUrl(dataUrl) {
-  const { data } = await client.post('/uploads/image', { image: dataUrl });
+  const { data } = await client.post('/uploads/image', { image: dataUrl }, { timeout: 60000 });
   return data.url;
 }
 

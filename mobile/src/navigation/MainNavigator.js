@@ -4,10 +4,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
-import { colors, glassmorphism } from '../theme/tokens';
+import { colors } from '../theme/tokens';
 import { DEFAULT_TAB_BAR_HEIGHT } from '../utils/responsive';
 
 import LoginScreen from '../screens/LoginScreen';
@@ -27,6 +26,8 @@ import CreateEventScreen from '../screens/CreateEventScreen';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
 import CheckInScannerScreen from '../screens/CheckInScannerScreen';
 import CreatorDashboardScreen from '../screens/CreatorDashboardScreen';
+import RequestOrganizerScreen from '../screens/RequestOrganizerScreen';
+import AdminRoleRequestsScreen from '../screens/AdminRoleRequestsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -112,7 +113,7 @@ function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused, color }) => {
           let iconName;
           if (route.name === 'Feed') iconName = focused ? 'compass' : 'compass-outline';
           else if (route.name === 'Map') iconName = focused ? 'map' : 'map-outline';
@@ -124,37 +125,21 @@ function TabNavigator() {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.on_surface_variant,
-        sceneContainerStyle: { paddingBottom: DEFAULT_TAB_BAR_HEIGHT },
+        tabBarLabelStyle: {
+          fontSize: 9,
+          fontWeight: '600',
+          letterSpacing: 0.3,
+        },
         tabBarStyle: {
-          position: 'absolute',
-          backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.surface_container_lowest,
+          backgroundColor: Platform.OS === 'ios' ? 'rgba(250,249,247,0.92)' : colors.surface_container_lowest,
           borderTopWidth: 1,
           borderTopColor: colors.surface_container_high,
           elevation: 0,
           height: DEFAULT_TAB_BAR_HEIGHT,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
-          paddingTop: 8,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 4,
+          paddingTop: 4,
         },
-        tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
-            <BlurView
-              intensity={glassmorphism.blurIntensity}
-              tint={glassmorphism.blurTint}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.surface_container_lowest },
-              ]}
-            />
-          ),
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-          letterSpacing: 0.5,
-        },
+        lazy: true,
       })}
     >
       <Tab.Screen name="Feed" component={FeedStackNavigator} />
@@ -177,6 +162,8 @@ function AuthenticatedNavigator() {
       <Stack.Screen name="CreatorDashboard" component={CreatorDashboardScreen} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
       <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+      <Stack.Screen name="RequestOrganizer" component={RequestOrganizerScreen} />
+      <Stack.Screen name="AdminRoleRequests" component={AdminRoleRequestsScreen} />
     </Stack.Navigator>
   );
 }

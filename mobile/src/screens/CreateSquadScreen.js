@@ -56,7 +56,7 @@ export default function CreateSquadScreen({ route, navigation }) {
         joinPolicy: 'open',
       });
       Alert.alert('Escuadra creada', 'Ya puedes invitar desde el detalle de la escuadra.');
-      navigation.goBack();
+      navigation.navigate('Squads', { showMine: true });
     } catch (e) {
       Alert.alert('Error', parseApiErrors(e));
     }

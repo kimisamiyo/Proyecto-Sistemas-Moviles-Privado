@@ -130,7 +130,15 @@ export default function FeedScreen({ navigation }) {
         >
           <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
-      ) : null}
+      ) : (
+        <TouchableOpacity
+          style={[styles.fabOrganizer, { bottom: spacing.lg, right: horizontalPad }]}
+          onPress={() => navigation.navigate('RequestOrganizer')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="megaphone-outline" size={20} color={colors.primary} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -172,4 +180,20 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: { fontSize: 28, color: colors.on_primary, fontWeight: '300', marginTop: -2 },
+  fabOrganizer: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surface_container_lowest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
 });

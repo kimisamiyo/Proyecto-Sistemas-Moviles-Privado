@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../theme/tokens';
@@ -10,14 +10,16 @@ export default function RegistrationModal({ visible, onClose, onConfirm, userEma
   const { t } = useLanguageStore();
 
   const handleConfirm = () => {
-    // Fuerte respuesta háptica
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onConfirm();
   };
 
+  const Overlay = Platform.OS === 'ios' ? BlurView : View;
+  const overlayProps = Platform.OS === 'ios' ? { intensity: 20, tint: 'dark' } : {};
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <BlurView intensity={20} tint="dark" style={styles.overlay}>
+      <Overlay {...overlayProps} style={styles.overlay}>
         <View style={styles.modalCard}>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <Ionicons name="close" size={24} color={colors.outline} />
@@ -46,7 +48,7 @@ export default function RegistrationModal({ visible, onClose, onConfirm, userEma
             <Ionicons name="checkmark-circle" size={20} color={colors.on_primary} />
           </TouchableOpacity>
         </View>
-      </BlurView>
+      </Overlay>
     </Modal>
   );
 }

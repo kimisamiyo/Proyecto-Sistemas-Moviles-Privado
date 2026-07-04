@@ -9,6 +9,9 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://outbreak-fanciness-agility.ngrok-free.dev/api/v1"
+      },
       "android": {
         "buildType": "apk"
       },

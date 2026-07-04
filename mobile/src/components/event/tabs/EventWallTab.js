@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEventusStore } from '../../../store/eventusStore';
@@ -25,13 +25,26 @@ export default function EventWallTab({ eventId, canPost, embedInScroll = false, 
   const [content, setContent] = useState('');
   const [type, setType] = useState('general');
   const [posting, setPosting] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const flatListRef = useRef(null);
 
   useEffect(() => {
     fetchWall(eventId);
-    // Cuasi tiempo real: refresca el muro periódicamente mientras está visible
     const interval = setInterval(() => fetchWall(eventId).catch(() => {}), WALL_POLL_MS);
     return () => clearInterval(interval);
   }, [eventId]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   const handleReact = async (postId) => {
     if (!canPost) return;
@@ -43,10 +56,14 @@ export default function EventWallTab({ eventId, canPost, embedInScroll = false, 
 
   const handlePost = async () => {
     if (!content.trim()) return;
+    Keyboard.dismiss();
     setPosting(true);
     try {
       await postWall(eventId, content.trim(), type);
       setContent('');
+      await fetchWall(eventId);
+    } catch (e) {
+      // silently handle - rate limit or network
     } finally {
       setPosting(false);
     }
@@ -101,46 +118,106 @@ export default function EventWallTab({ eventId, canPost, embedInScroll = false, 
     );
   };
 
+  if (embedInScroll) {
+    return (
+      <View style={styles.wrapEmbedded}>
+        {!canPost ? (
+          <View style={styles.banner}>
+            <Text style={styles.bannerText}>Inscríbete para participar en el muro</Text>
+          </View>
+        ) : null}
+        <View style={styles.list}>
+          {posts.length ? posts.map(renderPost) : <Text style={styles.empty}>Sé el primero en escribir</Text>}
+        </View>
+        {canPost ? (
+          <View style={[styles.composer, bottomInset > 0 && { paddingBottom: bottomInset }]}>
+            <View style={styles.typeRow}>
+              {TYPES.map((t) => (
+                <TouchableOpacity key={t.id} onPress={() => setType(t.id)}>
+                  <Text style={[styles.typeChip, type === t.id && styles.typeChipOn]}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <AppInput placeholder="Escribe algo al grupo..." value={content} onChangeText={setContent} multiline />
+            <TouchableOpacity
+              style={[styles.publishBtn, (!content.trim() || posting) && styles.publishBtnDisabled]}
+              onPress={handlePost}
+              disabled={!content.trim() || posting}
+              activeOpacity={0.7}
+            >
+              {posting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.publishBtnText}>Publicar</Text>}
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
-    <View style={embedInScroll ? styles.wrapEmbedded : styles.wrap}>
+    <KeyboardAvoidingView
+      style={styles.wrap}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 80}
+    >
       {!canPost ? (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>Inscríbete para participar en el muro</Text>
         </View>
       ) : null}
-      {embedInScroll ? (
-        <View style={styles.list}>
-          {posts.length ? posts.map(renderPost) : <Text style={styles.empty}>Sé el primero en escribir</Text>}
-        </View>
-      ) : (
-        <FlatList
-          style={styles.listFlex}
-          data={posts}
-          keyExtractor={(item, i) => String(item._id || i)}
-          contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>Sé el primero en escribir</Text>}
-          renderItem={({ item, index }) => renderPost(item, index)}
-        />
-      )}
+      <FlatList
+        ref={flatListRef}
+        style={styles.listFlex}
+        data={posts}
+        keyExtractor={(item, i) => String(item._id || i)}
+        contentContainerStyle={[styles.list, keyboardVisible && { paddingBottom: spacing.sm }]}
+        ListEmptyComponent={<Text style={styles.empty}>Sé el primero en escribir</Text>}
+        renderItem={({ item, index }) => renderPost(item, index)}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        onContentSizeChange={() => {
+          if (keyboardVisible && flatListRef.current) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }}
+      />
       {canPost ? (
-        <View style={[styles.composer, embedInScroll && bottomInset > 0 && { paddingBottom: bottomInset }]}>
-          <View style={styles.typeRow}>
-            {TYPES.map((t) => (
-              <TouchableOpacity key={t.id} onPress={() => setType(t.id)}>
-                <Text style={[styles.typeChip, type === t.id && styles.typeChipOn]}>{t.label}</Text>
-              </TouchableOpacity>
-            ))}
+        <View style={styles.composer}>
+          {!keyboardVisible ? (
+            <View style={styles.typeRow}>
+              {TYPES.map((t) => (
+                <TouchableOpacity key={t.id} onPress={() => setType(t.id)}>
+                  <Text style={[styles.typeChip, type === t.id && styles.typeChipOn]}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.inputRow}>
+            <AppInput
+              placeholder="Escribe algo al grupo..."
+              value={content}
+              onChangeText={setContent}
+              multiline
+              style={styles.inputFlex}
+            />
+            <TouchableOpacity
+              style={[styles.sendBtn, (!content.trim() || posting) && styles.publishBtnDisabled]}
+              onPress={handlePost}
+              disabled={!content.trim() || posting}
+              activeOpacity={0.7}
+            >
+              {posting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Ionicons name="send" size={18} color="#fff" />
+              )}
+            </TouchableOpacity>
           </View>
-          <AppInput
-            placeholder="Escribe algo al grupo..."
-            value={content}
-            onChangeText={setContent}
-            multiline
-          />
-          <AppButton title="Publicar" onPress={handlePost} loading={posting} style={{ marginTop: spacing.sm }} />
+          {keyboardVisible && type !== 'general' ? (
+            <Text style={styles.typeHint}>Tipo: {TYPES.find((t) => t.id === type)?.label}</Text>
+          ) : null}
         </View>
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -185,7 +262,8 @@ const styles = StyleSheet.create({
   composer: {
     borderTopWidth: 1,
     borderTopColor: colors.outline_variant,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
   },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm },
@@ -199,4 +277,35 @@ const styles = StyleSheet.create({
     textTransform: 'none',
   },
   typeChipOn: { backgroundColor: colors.primary, color: colors.on_primary },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+  },
+  inputFlex: { flex: 1 },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  typeHint: {
+    ...typography.label_sm,
+    color: colors.primary,
+    marginTop: spacing.xs,
+  },
+  publishBtn: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md + 2,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  publishBtnDisabled: { opacity: 0.5 },
+  publishBtnText: { ...typography.label_lg, fontWeight: '600', color: colors.on_primary },
 });
